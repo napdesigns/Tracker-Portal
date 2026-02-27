@@ -612,6 +612,8 @@ export async function resolveIteration(taskId) {
 
         if (updateError) throw new Error(updateError.message);
     }
+
+    logActivity({ action: 'iteration_resolved', entityType: 'task', entityId: taskId, details: `Resolved iteration on task` }).catch(() => {});
 }
 
 // ==========================================
@@ -633,11 +635,12 @@ export async function uploadCreativeFile(file, taskId, type) {
 
     if (error) throw new Error(error.message);
 
-    const { data: { publicUrl } } = supabase.storage
+    const { data: urlData } = supabase.storage
         .from('creatives')
         .getPublicUrl(data.path);
 
-    return publicUrl;
+    if (!urlData || !urlData.publicUrl) throw new Error('Failed to get public URL for uploaded file');
+    return urlData.publicUrl;
 }
 
 // ==========================================

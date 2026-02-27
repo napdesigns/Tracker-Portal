@@ -5,8 +5,7 @@
 import './index.css';
 import {
   seedData, migrateTaskData, getCurrentUser, logout, isAdmin, isSuperAdmin,
-  MONTHS, getTasks, getTasksByMonth, getStats,
-  getFreelancers, getUserById, clearUserCache,
+  clearUserCache,
 } from './store-async.js';
 import { supabase } from './supabase.js';
 import { renderLogin } from './auth.js';

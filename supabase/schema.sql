@@ -62,6 +62,11 @@ CREATE TABLE IF NOT EXISTS iterations (
     resolved_at TIMESTAMPTZ
 );
 
+-- Indexes for fast task queries
+CREATE INDEX IF NOT EXISTS idx_tasks_assigned_to ON tasks(assigned_to);
+CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status);
+CREATE INDEX IF NOT EXISTS idx_tasks_date ON tasks(date);
+
 -- Index for fast iteration lookups
 CREATE INDEX IF NOT EXISTS idx_iterations_task_id ON iterations(task_id);
 
