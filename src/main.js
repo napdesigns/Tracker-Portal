@@ -14,8 +14,12 @@ import { renderDashboard } from './dashboard.js';
 import { renderTable } from './table.js';
 import { renderTaskDetail } from './task-detail.js';
 import { renderUsers } from './users.js';
+import { renderAnalytics } from './analytics.js';
+import { renderKanban, initKanbanDragDrop } from './kanban.js';
+import { renderActivityLog } from './activity-log.js';
 import { showToast } from './toast.js';
 import { renderNotificationBell } from './notifications.js';
+import icons from './icons.js';
 
 // Initialize seed data & migrate
 seedData();
@@ -63,13 +67,16 @@ async function renderAppShell(content) {
   const notifBellHTML = await renderNotificationBell();
 
   const navItems = [
-    { id: 'dashboard', icon: '📊', label: 'Dashboard' },
-    { id: 'tasks', icon: '📋', label: 'Tasks' },
+    { id: 'dashboard', icon: icons.dashboard, label: 'Dashboard' },
+    { id: 'tasks', icon: icons.tasks, label: 'Tasks' },
+    { id: 'kanban', icon: icons.kanban, label: 'Kanban' },
+    { id: 'analytics', icon: icons.analytics, label: 'Analytics' },
   ];
 
   if (adminUser) {
-    navItems.push({ id: 'users', icon: '👥', label: 'Users' });
+    navItems.push({ id: 'users', icon: icons.users, label: 'Users' });
   }
+  navItems.push({ id: 'activity', icon: icons.activity, label: 'Activity Log' });
 
   const initials = user.name.split(' ').map(n => n[0]).join('').toUpperCase();
 
@@ -97,11 +104,11 @@ async function renderAppShell(content) {
             <div class="user-name">${user.name}</div>
             <div class="user-role">${user.role === 'superadmin' ? 'Super Admin' : user.role}</div>
           </div>
-          <button class="logout-btn" onclick="handleLogout()" title="Logout" id="logout-btn">🚪</button>
+          <button class="logout-btn" onclick="handleLogout()" title="Logout" id="logout-btn">${icons.logout}</button>
         </div>
       </aside>
       <main class="main-content">
-        <button class="hamburger-btn" onclick="toggleSidebar()" id="hamburger-btn">☰</button>
+        <button class="hamburger-btn" onclick="toggleSidebar()" id="hamburger-btn">${icons.menu}</button>
         ${content}
       </main>
     </div>
@@ -162,6 +169,15 @@ async function renderApp() {
           pageContent = await renderDashboard();
         }
         break;
+      case 'analytics':
+        pageContent = await renderAnalytics();
+        break;
+      case 'kanban':
+        pageContent = await renderKanban();
+        break;
+      case 'activity':
+        pageContent = await renderActivityLog();
+        break;
       case 'task-detail':
         pageContent = await renderTaskDetail(window.appState.selectedTaskId);
         break;
@@ -173,6 +189,11 @@ async function renderApp() {
 
     // Setup realtime notifications (non-blocking)
     setupRealtimeNotifications().catch(() => {});
+
+    // Initialize Kanban drag-and-drop if on kanban page
+    if (page === 'kanban') {
+      setTimeout(() => initKanbanDragDrop(), 0);
+    }
   } catch (err) {
     console.error('RenderApp Error:', err);
     app.innerHTML = `<div style="padding:40px;color:#ff6b6b;font-family:monospace;"><h2>Error</h2><pre>${err.message}\n${err.stack}</pre></div>`;

@@ -248,6 +248,7 @@ function addTask(taskData) {
         paymentStatus: taskData.paymentStatus || 'Unpaid',
         assignedTo: taskData.assignedTo || null,
         assignedBy: taskData.assignedBy || null,
+        dueDate: taskData.dueDate || null,
         status: 'assigned',
         assignedAt: new Date().toISOString(),
         pickedUpAt: null,

@@ -6,6 +6,7 @@ import {
     getCurrentUser, getNotifications, getUnreadCount,
     markNotificationRead, markAllNotificationsRead,
 } from './store-async.js';
+import icons from './icons.js';
 
 export async function renderNotificationBell() {
     const user = await getCurrentUser();
@@ -16,7 +17,7 @@ export async function renderNotificationBell() {
     return `
     <div class="notification-bell-wrapper">
       <button class="notification-bell" onclick="toggleNotificationDropdown()" id="notification-bell" title="Notifications">
-        <span class="bell-icon">🔔</span>
+        <span class="bell-icon">${icons.bell}</span>
         ${unreadCount > 0 ? `<span class="notification-badge">${unreadCount > 99 ? '99+' : unreadCount}</span>` : ''}
       </button>
       <div class="notification-dropdown" id="notification-dropdown" style="display: none;"></div>
@@ -40,15 +41,15 @@ function timeAgo(dateStr) {
 }
 
 function notifIcon(type) {
-    const icons = {
-        assigned: '📥',
-        submitted: '📤',
-        approved: '✅',
-        rejected: '❌',
-        iteration: '🔄',
-        info: 'ℹ️',
+    const iconMap = {
+        assigned: icons.inbox,
+        submitted: icons.send,
+        approved: icons.checkCircle,
+        rejected: icons.x,
+        iteration: icons.refreshCw,
+        info: icons.bell,
     };
-    return icons[type] || icons.info;
+    return iconMap[type] || iconMap.info;
 }
 
 window.toggleNotificationDropdown = async function () {
@@ -68,7 +69,7 @@ window.toggleNotificationDropdown = async function () {
           <span class="notif-header-title">Notifications</span>
         </div>
         <div class="notif-empty">
-          <div style="font-size: 1.5rem; margin-bottom: 8px; opacity: 0.5;">🔔</div>
+          <div style="margin-bottom: 8px; opacity: 0.5;">${icons.bell}</div>
           <div>No notifications yet</div>
         </div>
       `;

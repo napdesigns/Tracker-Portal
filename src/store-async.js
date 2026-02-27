@@ -332,6 +332,7 @@ export async function addTask(taskData) {
         payment_status: taskData.paymentStatus || 'Unpaid',
         assigned_to: taskData.assignedTo || null,
         assigned_by: taskData.assignedBy || null,
+        due_date: taskData.dueDate || null,
         status: 'assigned',
         assigned_at: new Date().toISOString(),
     };
@@ -357,6 +358,8 @@ export async function addTask(taskData) {
             });
         } catch (e) { console.warn('Notification error:', e); }
     }
+
+    logActivity({ action: 'task_created', entityType: 'task', entityId: task.id, details: `Created task "${taskData.client || 'Untitled'}"` }).catch(() => {});
 
     return task;
 }
@@ -385,7 +388,11 @@ export async function updateTask(id, data) {
 }
 
 export async function deleteTask(id) {
-    if (!isSupabaseConfigured()) return _deleteTask(id);
+    if (!isSupabaseConfigured()) {
+        _deleteTask(id);
+        logActivity({ action: 'task_deleted', entityType: 'task', entityId: id, details: `Deleted task` }).catch(() => {});
+        return;
+    }
 
     const { error } = await supabase
         .from('tasks')
@@ -393,6 +400,7 @@ export async function deleteTask(id) {
         .eq('id', id);
 
     if (error) throw new Error(error.message);
+    logActivity({ action: 'task_deleted', entityType: 'task', entityId: id, details: `Deleted task` }).catch(() => {});
 }
 
 // ==========================================
@@ -400,10 +408,12 @@ export async function deleteTask(id) {
 // ==========================================
 
 export async function pickUpTask(taskId) {
-    return updateTask(taskId, {
+    const result = await updateTask(taskId, {
         status: 'in_progress',
         pickedUpAt: new Date().toISOString(),
     });
+    logActivity({ action: 'task_picked_up', entityType: 'task', entityId: taskId, details: `Picked up task #${result.slNo}` }).catch(() => {});
+    return result;
 }
 
 export async function uploadCompletedCreative(taskId, creativeUrl) {
@@ -436,6 +446,8 @@ export async function submitTask(taskId) {
         }
     } catch (e) { console.warn('Notification error:', e); }
 
+    logActivity({ action: 'task_submitted', entityType: 'task', entityId: taskId, details: `Submitted task #${task.slNo} "${task.client}"` }).catch(() => {});
+
     return result;
 }
 
@@ -458,6 +470,8 @@ export async function approveTask(taskId) {
             });
         } catch (e) { console.warn('Notification error:', e); }
     }
+
+    logActivity({ action: 'task_approved', entityType: 'task', entityId: taskId, details: `Approved task #${task.slNo} "${task.client}"` }).catch(() => {});
 
     return result;
 }
@@ -483,6 +497,8 @@ export async function rejectTask(taskId, reason) {
             });
         } catch (e) { console.warn('Notification error:', e); }
     }
+
+    logActivity({ action: 'task_rejected', entityType: 'task', entityId: taskId, details: `Rejected task #${task.slNo} "${task.client}"${reason ? '. Reason: ' + reason : ''}` }).catch(() => {});
 
     return result;
 }
@@ -543,6 +559,8 @@ export async function requestIteration(taskId, reason, blame) {
             });
         } catch (e) { console.warn('Notification error:', e); }
     }
+
+    logActivity({ action: 'iteration_requested', entityType: 'task', entityId: taskId, details: `Requested iteration on task #${task.slNo} "${task.client}" (blame: ${blame}). Reason: ${reason}` }).catch(() => {});
 
     return result;
 }
@@ -730,4 +748,64 @@ export async function createNotification({ userId, type, title, message, taskId 
             message: message || '',
             task_id: taskId || null,
         });
+}
+
+// ==========================================
+// Activity Log
+// ==========================================
+
+const LOCAL_ACTIVITY_KEY = 'crm_activity_log';
+
+function getLocalActivityLog() {
+    return JSON.parse(localStorage.getItem(LOCAL_ACTIVITY_KEY) || '[]');
+}
+
+function saveLocalActivityLog(log) {
+    localStorage.setItem(LOCAL_ACTIVITY_KEY, JSON.stringify(log));
+}
+
+export async function logActivity({ action, entityType, entityId, details }) {
+    const user = await getCurrentUser();
+    const entry = {
+        userId: user ? user.id : null,
+        userName: user ? user.name : 'System',
+        action,
+        entityType: entityType || 'task',
+        entityId: entityId || null,
+        details: details || '',
+        createdAt: new Date().toISOString(),
+    };
+
+    if (!isSupabaseConfigured()) {
+        const log = getLocalActivityLog();
+        log.push({ id: generateId(), ...entry });
+        saveLocalActivityLog(log);
+        return;
+    }
+
+    await supabase.from('activity_log').insert({
+        user_id: entry.userId,
+        user_name: entry.userName,
+        action: entry.action,
+        entity_type: entry.entityType,
+        entity_id: entry.entityId,
+        details: entry.details,
+    }).then(() => {}).catch(e => console.warn('Activity log error:', e));
+}
+
+export async function getActivityLog(limit = 100) {
+    if (!isSupabaseConfigured()) {
+        return getLocalActivityLog()
+            .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+            .slice(0, limit);
+    }
+
+    const { data, error } = await supabase
+        .from('activity_log')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(limit);
+
+    if (error) throw new Error(error.message);
+    return (data || []).map(toCamelCase);
 }

@@ -6,6 +6,7 @@ import {
     getCurrentUser, isAdmin, getTasks, getTasksByFreelancer,
     getStats, MONTHS,
 } from './store-async.js';
+import icons from './icons.js';
 
 async function renderDashboard() {
     const user = await getCurrentUser();
@@ -25,27 +26,27 @@ async function renderDashboard() {
     if (adminUser) {
         cardsHTML = `
       <div class="stat-card purple">
-        <div class="stat-icon">📋</div>
+        <div class="stat-icon">${icons.clipboard}</div>
         <div class="stat-value">${stats.totalTasks}</div>
         <div class="stat-label">Total Tasks</div>
       </div>
       <div class="stat-card teal">
-        <div class="stat-icon">💰</div>
+        <div class="stat-icon">${icons.dollarSign}</div>
         <div class="stat-value">₹${stats.totalAmount.toLocaleString('en-IN')}</div>
         <div class="stat-label">Total Amount</div>
       </div>
       <div class="stat-card green">
-        <div class="stat-icon">✅</div>
+        <div class="stat-icon">${icons.checkCircle}</div>
         <div class="stat-value">${stats.approved}</div>
         <div class="stat-label">Approved</div>
       </div>
       <div class="stat-card amber">
-        <div class="stat-icon">⏳</div>
+        <div class="stat-icon">${icons.clock}</div>
         <div class="stat-value">${stats.pendingPayments}</div>
         <div class="stat-label">Pending Payments</div>
       </div>
       <div class="stat-card red">
-        <div class="stat-icon">🔄</div>
+        <div class="stat-icon">${icons.refreshCw}</div>
         <div class="stat-value">${stats.totalIterations}</div>
         <div class="stat-label">Total Iterations</div>
       </div>
@@ -53,27 +54,27 @@ async function renderDashboard() {
     } else {
         cardsHTML = `
       <div class="stat-card amber">
-        <div class="stat-icon">📥</div>
+        <div class="stat-icon">${icons.inbox}</div>
         <div class="stat-value">${stats.assigned}</div>
         <div class="stat-label">Assigned to Me</div>
       </div>
       <div class="stat-card teal">
-        <div class="stat-icon">🔨</div>
+        <div class="stat-icon">${icons.hammer}</div>
         <div class="stat-value">${stats.inProgress}</div>
         <div class="stat-label">In Progress</div>
       </div>
       <div class="stat-card purple">
-        <div class="stat-icon">📤</div>
+        <div class="stat-icon">${icons.send}</div>
         <div class="stat-value">${stats.submitted}</div>
         <div class="stat-label">Submitted</div>
       </div>
       <div class="stat-card green">
-        <div class="stat-icon">✅</div>
+        <div class="stat-icon">${icons.checkCircle}</div>
         <div class="stat-value">${stats.approved}</div>
         <div class="stat-label">Approved</div>
       </div>
       <div class="stat-card red">
-        <div class="stat-icon">🔄</div>
+        <div class="stat-icon">${icons.refreshCw}</div>
         <div class="stat-value">${stats.totalIterations}</div>
         <div class="stat-label">Iterations</div>
       </div>
@@ -86,7 +87,7 @@ async function renderDashboard() {
     if (recentTasks.length > 0) {
         recentHTML = `
       <div class="task-detail-section" style="margin-top: 8px;">
-        <h3>📌 Recent Tasks</h3>
+        <h3>${icons.pin} Recent Tasks</h3>
         <div class="table-container">
           <table class="data-table">
             <thead>

@@ -41,6 +41,7 @@ CREATE TABLE IF NOT EXISTS tasks (
     submitted_at TIMESTAMPTZ,
     rejected_at TIMESTAMPTZ,
     rejection_reason TEXT,
+    due_date DATE,
     month INTEGER GENERATED ALWAYS AS (EXTRACT(MONTH FROM date)::INTEGER - 1) STORED,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
@@ -79,6 +80,24 @@ CREATE TABLE IF NOT EXISTS notifications (
 -- Index for fast notification lookups
 CREATE INDEX IF NOT EXISTS idx_notifications_user_id ON notifications(user_id);
 CREATE INDEX IF NOT EXISTS idx_notifications_unread ON notifications(user_id, is_read) WHERE is_read = FALSE;
+
+-- ==========================================
+-- Activity Log Table
+-- ==========================================
+CREATE TABLE IF NOT EXISTS activity_log (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID REFERENCES profiles(id) ON DELETE SET NULL,
+    user_name TEXT NOT NULL DEFAULT '',
+    action TEXT NOT NULL,
+    entity_type TEXT NOT NULL DEFAULT 'task',
+    entity_id TEXT,
+    details TEXT NOT NULL DEFAULT '',
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Index for fast activity log lookups
+CREATE INDEX IF NOT EXISTS idx_activity_log_created_at ON activity_log(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_activity_log_entity ON activity_log(entity_type, entity_id);
 
 -- ==========================================
 -- Auto-update updated_at trigger
@@ -226,6 +245,30 @@ CREATE POLICY "Users can update own notifications"
     ON notifications FOR UPDATE
     TO authenticated
     USING (user_id = auth.uid());
+
+-- Activity Log: admins can view all, freelancers can view their own
+ALTER TABLE activity_log ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Admins can view all activity logs"
+    ON activity_log FOR SELECT
+    TO authenticated
+    USING (
+        EXISTS (
+            SELECT 1 FROM profiles
+            WHERE profiles.id = auth.uid()
+            AND profiles.role IN ('admin', 'superadmin')
+        )
+    );
+
+CREATE POLICY "Freelancers can view own activity logs"
+    ON activity_log FOR SELECT
+    TO authenticated
+    USING (user_id = auth.uid());
+
+CREATE POLICY "Authenticated users can insert activity logs"
+    ON activity_log FOR INSERT
+    TO authenticated
+    WITH CHECK (true);
 
 -- Storage: authenticated users can upload to creatives bucket
 CREATE POLICY "Authenticated users can upload creatives"

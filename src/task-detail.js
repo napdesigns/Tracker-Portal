@@ -7,6 +7,7 @@ import {
     rejectTask,
 } from './store-async.js';
 import { showToast } from './toast.js';
+import icons from './icons.js';
 
 async function renderTaskDetail(taskId) {
     const task = await getTaskById(taskId);
@@ -241,6 +242,10 @@ async function renderTaskDetail(taskId) {
         <div class="detail-field">
           <div class="field-label">Editable File Shared</div>
           <div class="field-value">${sanitizeHTML(task.editableFileShared)}</div>
+        </div>
+        <div class="detail-field">
+          <div class="field-label">Due Date</div>
+          <div class="field-value ${task.dueDate && task.dueDate < new Date().toISOString().split('T')[0] && !['approved', 'rejected'].includes(task.status) ? 'overdue-text' : ''}">${task.dueDate ? formatDate(task.dueDate) : '—'}</div>
         </div>
         <div class="detail-field">
           <div class="field-label">Assigned To</div>

@@ -8,6 +8,7 @@ import {
     getTasks, getStats,
 } from './store-async.js';
 import { showToast } from './toast.js';
+import icons from './icons.js';
 
 async function renderUsers() {
     const currentUser = await getCurrentUser();
@@ -30,7 +31,7 @@ async function renderUsers() {
       <div class="task-detail-section">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
           <h3>${title} (${usersList.length})</h3>
-          ${canAdd ? `<button class="btn btn-sm btn-primary" onclick="openAddUserModal('${title === 'Admins' ? 'admin' : 'freelancer'}')" id="add-${title.toLowerCase()}-btn">➕ Add</button>` : ''}
+          ${canAdd ? `<button class="btn btn-sm btn-primary" onclick="openAddUserModal('${title === 'Admins' ? 'admin' : 'freelancer'}')" id="add-${title.toLowerCase()}-btn">${icons.plus} Add</button>` : ''}
         </div>
         <div class="table-container">
           <table class="data-table">
@@ -64,8 +65,8 @@ async function renderUsers() {
                     <td><span class="badge badge-${u.role === 'superadmin' ? 'approved' : u.role === 'admin' ? 'submitted' : 'assigned'}">${u.role === 'superadmin' ? 'Super Admin' : u.role}</span></td>
                     ${statsHTML}
                     <td class="row-actions">
-                      <button class="btn-icon" onclick="openEditUserModal('${u.id}')" title="Edit">✏️</button>
-                      ${canDelete ? `<button class="btn-icon" onclick="handleDeleteUser('${u.id}')" title="Delete">🗑️</button>` : ''}
+                      <button class="btn-icon" onclick="openEditUserModal('${u.id}')" title="Edit">${icons.edit}</button>
+                      ${canDelete ? `<button class="btn-icon" onclick="handleDeleteUser('${u.id}')" title="Delete">${icons.trash}</button>` : ''}
                     </td>
                   </tr>
                 `;
@@ -187,7 +188,7 @@ window.handleDeleteUser = function (id) {
     overlay.innerHTML = `
     <div class="modal confirm-dialog">
       <div class="modal-body">
-        <div class="confirm-icon">⚠️</div>
+        <div class="confirm-icon">${icons.alertTriangle}</div>
         <h3 style="margin-bottom: 8px;">Delete this user?</h3>
         <p class="confirm-text">This action cannot be undone.</p>
       </div>

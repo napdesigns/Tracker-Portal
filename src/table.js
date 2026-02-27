@@ -12,6 +12,7 @@ import {
 } from './store-async.js';
 import { showToast } from './toast.js';
 import { validateImageFile } from './validation.js';
+import icons from './icons.js';
 
 // ==========================================
 // Filtering Helper
@@ -107,6 +108,10 @@ async function getFilteredTasks() {
                 return ((parseFloat(a.amount) || 0) - (parseFloat(b.amount) || 0)) * dir;
             case 'payment':
                 return (a.paymentStatus || '').localeCompare(b.paymentStatus || '') * dir;
+            case 'dueDate':
+                valA = a.dueDate || '9999-12-31';
+                valB = b.dueDate || '9999-12-31';
+                return valA.localeCompare(valB) * dir;
             case 'iterations':
                 return (((a.iterations || []).length) - ((b.iterations || []).length)) * dir;
             default:
@@ -173,9 +178,9 @@ async function renderTable() {
     if (tasks.length === 0) {
         tableBody = `
       <tr>
-        <td colspan="${adminUser ? '14' : '13'}">
+        <td colspan="${adminUser ? '15' : '14'}">
           <div class="empty-state">
-            <div class="empty-icon">📭</div>
+            <div class="empty-icon">${icons.inbox}</div>
             <div class="empty-title">No tasks found</div>
             <div class="empty-text">
               ${adminUser ? 'Click "Add Task" to create a new task.' : 'No tasks assigned for this month.'}
@@ -211,7 +216,7 @@ async function renderTable() {
             ${isCompleted ? '<span class="completed-badge">Done</span>' : ''}
           </div>`;
             } else {
-                creativeCol = `<div class="creative-placeholder">🖼</div>`;
+                creativeCol = `<div class="creative-placeholder">${icons.image}</div>`;
             }
 
             // Checkbox for bulk ops (admin only)
@@ -223,12 +228,12 @@ async function renderTable() {
             let actionsHTML = '';
             if (adminUser) {
                 actionsHTML = `
-          <button class="btn-icon" onclick="event.stopPropagation(); openEditTaskModal('${t.id}')" title="Edit">✏️</button>
-          <button class="btn-icon" onclick="event.stopPropagation(); handleDeleteTask('${t.id}')" title="Delete">🗑️</button>
+          <button class="btn-icon" onclick="event.stopPropagation(); openEditTaskModal('${t.id}')" title="Edit">${icons.edit}</button>
+          <button class="btn-icon" onclick="event.stopPropagation(); handleDeleteTask('${t.id}')" title="Delete">${icons.trash}</button>
           ${t.status === 'submitted' ? `
-            <button class="btn-icon" onclick="event.stopPropagation(); handleApproveTask('${t.id}')" title="Approve" style="color: var(--status-approved);">✅</button>
-            <button class="btn-icon" onclick="event.stopPropagation(); openRejectModal('${t.id}')" title="Reject" style="color: var(--status-rejected);">❌</button>
-            <button class="btn-icon" onclick="event.stopPropagation(); openIterationModal('${t.id}')" title="Request Iteration" style="color: var(--status-iteration);">🔄</button>
+            <button class="btn-icon" onclick="event.stopPropagation(); handleApproveTask('${t.id}')" title="Approve" style="color: var(--status-approved);">${icons.check}</button>
+            <button class="btn-icon" onclick="event.stopPropagation(); openRejectModal('${t.id}')" title="Reject" style="color: var(--status-rejected);">${icons.x}</button>
+            <button class="btn-icon" onclick="event.stopPropagation(); openIterationModal('${t.id}')" title="Request Iteration" style="color: var(--status-iteration);">${icons.refresh}</button>
           ` : ''}
         `;
             } else {
@@ -255,6 +260,7 @@ async function renderTable() {
           <td><span class="badge badge-${creativeStatusBadgeClass(t.creativeStatus)}">${sanitizeHTML(t.creativeStatus || 'Pending')}</span></td>
           <td>₹${(parseFloat(t.amount) || 0).toLocaleString('en-IN')}</td>
           <td><span class="badge badge-${(t.paymentStatus || 'unpaid').toLowerCase()}">${sanitizeHTML(t.paymentStatus) || 'Unpaid'}</span></td>
+          <td class="${t.dueDate && t.dueDate < new Date().toISOString().split('T')[0] && !['approved', 'rejected'].includes(t.status) ? 'overdue-cell' : ''}">${t.dueDate ? formatDate(t.dueDate) : '—'}</td>
           <td>${adminUser ? freelancerName : ''}</td>
           <td>${iterCount > 0 ? `<span class="badge badge-iteration">${iterCount}</span>` : '0'}</td>
           <td class="row-actions" onclick="event.stopPropagation();">${actionsHTML}</td>
@@ -284,8 +290,8 @@ async function renderTable() {
     <div class="page-header">
       <h1>Tasks</h1>
       <div style="display: flex; gap: 8px;">
-        ${adminUser ? `<button class="btn btn-secondary btn-sm" onclick="exportCSV()">📥 Export CSV</button>` : ''}
-        ${adminUser ? `<button class="btn btn-primary" onclick="openAddTaskModal()" id="add-task-btn">➕ Add Task</button>` : ''}
+        ${adminUser ? `<button class="btn btn-secondary btn-sm" onclick="exportCSV()">${icons.download} Export CSV</button>` : ''}
+        ${adminUser ? `<button class="btn btn-primary" onclick="openAddTaskModal()" id="add-task-btn">${icons.plus} Add Task</button>` : ''}
       </div>
     </div>
     <div class="page-body">
@@ -295,7 +301,7 @@ async function renderTable() {
         <div class="table-toolbar">
           <div class="toolbar-left">
             <div class="search-box">
-              <span class="search-icon">🔍</span>
+              <span class="search-icon">${icons.search}</span>
               <input type="text" placeholder="Search by client..."
                      value="${window.appState.searchQuery || ''}"
                      oninput="handleSearch(this.value)" id="search-input" />
@@ -356,6 +362,7 @@ async function renderTable() {
                 <th>Creative Status</th>
                 ${sortableHeader('Amount', 'amount')}
                 ${sortableHeader('Payment', 'payment')}
+                ${sortableHeader('Due Date', 'dueDate')}
                 ${adminUser ? '<th>Assigned To</th>' : '<th></th>'}
                 ${sortableHeader('Iters', 'iterations')}
                 <th>Actions</th>
@@ -566,7 +573,7 @@ window.handleBulkClear = async function () {
 
 window.exportCSV = async function () {
     const tasks = await getFilteredTasks();
-    const headers = ['Sl No', 'Date', 'Client', 'Type', 'Status', 'Amount', 'Payment', 'Assigned To', 'Iterations'];
+    const headers = ['Sl No', 'Date', 'Client', 'Type', 'Status', 'Amount', 'Payment', 'Due Date', 'Assigned To', 'Iterations'];
     const freelancerCache = {};
     for (const t of tasks) {
         if (t.assignedTo && !freelancerCache[t.assignedTo]) {
@@ -583,6 +590,7 @@ window.exportCSV = async function () {
             formatStatusLabel(t.status),
             t.amount || 0,
             t.paymentStatus || 'Unpaid',
+            t.dueDate || '',
             freelancer ? `"${freelancer.name.replace(/"/g, '""')}"` : '',
             (t.iterations || []).length,
         ].join(',');
@@ -620,7 +628,7 @@ function showConfirmDialog(title, text, onConfirm) {
     overlay.innerHTML = `
     <div class="modal confirm-dialog">
       <div class="modal-body">
-        <div class="confirm-icon">⚠️</div>
+        <div class="confirm-icon">${icons.alertTriangle}</div>
         <h3 style="margin-bottom: 8px;">${sanitizeHTML(title)}</h3>
         <p class="confirm-text">${sanitizeHTML(text)}</p>
       </div>
@@ -712,17 +720,23 @@ async function showTaskModal(task) {
               </select>
             </div>
           </div>
-          <div class="form-group">
-            <label>Editable File Shared</label>
-            <select class="form-control" id="task-editable">
-              <option value="No" ${task && task.editableFileShared === 'No' ? 'selected' : ''}>No</option>
-              <option value="Yes" ${task && task.editableFileShared === 'Yes' ? 'selected' : ''}>Yes</option>
-            </select>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Due Date</label>
+              <input type="date" class="form-control" id="task-due-date" value="${task && task.dueDate ? task.dueDate : ''}" />
+            </div>
+            <div class="form-group">
+              <label>Editable File Shared</label>
+              <select class="form-control" id="task-editable">
+                <option value="No" ${task && task.editableFileShared === 'No' ? 'selected' : ''}>No</option>
+                <option value="Yes" ${task && task.editableFileShared === 'Yes' ? 'selected' : ''}>Yes</option>
+              </select>
+            </div>
           </div>
           <div class="form-group">
             <label>Reference Creative</label>
             <div class="upload-zone" id="upload-zone">
-              <div class="upload-icon">📁</div>
+              <div class="upload-icon">${icons.file}</div>
               <div class="upload-text">Drag & drop or click to upload</div>
               <input type="file" id="creative-input" accept="image/*" style="display:none;" />
             </div>
@@ -807,6 +821,7 @@ async function showTaskModal(task) {
         const amount = overlay.querySelector('#task-amount').value;
         const paymentStatus = overlay.querySelector('#task-payment').value;
         const editableFileShared = overlay.querySelector('#task-editable').value;
+        const dueDate = overlay.querySelector('#task-due-date').value || null;
 
         if (!client) {
             showToast('Please enter a client name', 'error');
@@ -818,6 +833,7 @@ async function showTaskModal(task) {
                 date, client, type, assignedTo: assignedTo || null,
                 amount: parseFloat(amount) || 0, paymentStatus, editableFileShared,
                 referenceCreative: creativeData, month: new Date(date).getMonth(),
+                dueDate,
             });
             showToast('Task updated!', 'success');
         } else {
@@ -825,6 +841,7 @@ async function showTaskModal(task) {
                 date, client, type, assignedTo: assignedTo || null,
                 amount: parseFloat(amount) || 0, paymentStatus, editableFileShared,
                 referenceCreative: creativeData, assignedBy: user.id,
+                dueDate,
             });
             showToast('Task created!', 'success');
         }
@@ -870,7 +887,7 @@ window.openUploadCreativeModal = async function (taskId) {
             </div>
           ` : ''}
           <div class="upload-zone" id="uc-upload-zone">
-            <div class="upload-icon">📁</div>
+            <div class="upload-icon">${icons.file}</div>
             <div class="upload-text">${task.completedCreative ? 'Replace creative — drag & drop or click' : 'Drag & drop or click to upload'}</div>
             <input type="file" id="uc-file-input" accept="image/*" style="display:none;" />
           </div>
@@ -979,7 +996,7 @@ window.openSubmitModal = async function (taskId) {
           <div class="form-group">
             <label>Upload Creative (required before submission)</label>
             <div class="upload-zone" id="submit-upload-zone">
-              <div class="upload-icon">📁</div>
+              <div class="upload-icon">${icons.file}</div>
               <div class="upload-text">Drag & drop or click to upload</div>
               <input type="file" id="submit-file-input" accept="image/*" style="display:none;" />
             </div>
