@@ -339,11 +339,22 @@ export async function addTask(taskData) {
         assigned_at: new Date().toISOString(),
     };
 
-    const { data, error } = await supabase
+    let { data, error } = await supabase
         .from('tasks')
         .insert(insertData)
         .select('*, iterations(*)')
         .single();
+
+    // Retry without new columns if they don't exist in DB yet
+    if (error && error.message && error.message.includes('column')) {
+        delete insertData.description;
+        delete insertData.source_link;
+        ({ data, error } = await supabase
+            .from('tasks')
+            .insert(insertData)
+            .select('*, iterations(*)')
+            .single());
+    }
 
     if (error) throw new Error(error.message);
     const task = mapTaskFromDB(data);
@@ -378,12 +389,24 @@ export async function updateTask(id, data) {
     delete snakeData.created_at;
     delete snakeData.month; // generated column
 
-    const { data: updated, error } = await supabase
+    let { data: updated, error } = await supabase
         .from('tasks')
         .update(snakeData)
         .eq('id', id)
         .select('*, iterations(*)')
         .single();
+
+    // Retry without new columns if they don't exist in DB yet
+    if (error && error.message && error.message.includes('column')) {
+        delete snakeData.description;
+        delete snakeData.source_link;
+        ({ data: updated, error } = await supabase
+            .from('tasks')
+            .update(snakeData)
+            .eq('id', id)
+            .select('*, iterations(*)')
+            .single());
+    }
 
     if (error) throw new Error(error.message);
     return mapTaskFromDB(updated);
