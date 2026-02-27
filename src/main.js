@@ -16,6 +16,7 @@ import { renderUsers } from './users.js';
 import { renderAnalytics } from './analytics.js';
 import { renderKanban, initKanbanDragDrop } from './kanban.js';
 import { renderActivityLog } from './activity-log.js';
+import { renderChat } from './chat.js';
 import { showToast } from './toast.js';
 import { renderNotificationBell } from './notifications.js';
 import icons from './icons.js';
@@ -75,6 +76,7 @@ async function renderAppShell(content) {
   if (adminUser) {
     navItems.push({ id: 'users', icon: icons.users, label: 'Users' });
   }
+  navItems.push({ id: 'chat', icon: icons.chat, label: 'Chat' });
   navItems.push({ id: 'activity', icon: icons.activity, label: 'Activity Log' });
 
   const initials = user.name.split(' ').map(n => n[0]).join('').toUpperCase();
@@ -174,6 +176,9 @@ async function renderApp() {
       case 'kanban':
         pageContent = await renderKanban();
         break;
+      case 'chat':
+        pageContent = await renderChat();
+        break;
       case 'activity':
         pageContent = await renderActivityLog();
         break;
@@ -192,6 +197,14 @@ async function renderApp() {
     // Initialize Kanban drag-and-drop if on kanban page
     if (page === 'kanban') {
       setTimeout(() => initKanbanDragDrop(), 0);
+    }
+
+    // Scroll chat to bottom
+    if (page === 'chat') {
+      setTimeout(() => {
+        const chatMsgs = document.getElementById('chat-messages');
+        if (chatMsgs) chatMsgs.scrollTop = chatMsgs.scrollHeight;
+      }, 50);
     }
   } catch (err) {
     console.error('RenderApp Error:', err);
@@ -244,6 +257,16 @@ async function setupRealtimeNotifications() {
       if (notif) {
         showToast(notif.title || 'New notification', 'info');
         // Re-render to update badge count
+        renderApp();
+      }
+    })
+    .on('postgres_changes', {
+      event: 'INSERT',
+      schema: 'public',
+      table: 'chat_messages',
+    }, () => {
+      // Re-render if on chat page to show new messages
+      if (window.appState.currentPage === 'chat') {
         renderApp();
       }
     })

@@ -4,7 +4,7 @@
 
 import {
     getTaskById, getUserById, isAdmin, getCurrentUser, formatDate, formatDateTime, timeDiff, sanitizeHTML,
-    rejectTask,
+    rejectTask, getTaskComments, addTaskComment, deleteTaskComment,
 } from './store-async.js';
 import { showToast } from './toast.js';
 import icons from './icons.js';
@@ -310,9 +310,118 @@ async function renderTaskDetail(taskId) {
           ${blameSummaryHTML}
         </div>
       ` : ''}
+
+      ${await renderCommentsSection(taskId, currentUser)}
+
+      ${adminUser && task.completedCreative ? `
+      <div class="task-detail-section">
+        <h3>${icons.share} Share Creative</h3>
+        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+          <button class="btn btn-sm" style="background: #25D366; color: #fff; border: none;" onclick="shareToWhatsApp('${task.id}')">
+            ${icons.whatsapp} Share to WhatsApp
+          </button>
+        </div>
+      </div>
+      ` : ''}
     </div>
   `;
 }
+
+// ==========================================
+// Comments Section
+// ==========================================
+
+async function renderCommentsSection(taskId, currentUser) {
+    const comments = await getTaskComments(taskId);
+    const admin = await isAdmin();
+
+    const commentsHTML = comments.length === 0
+        ? `<p style="color: var(--text-muted); font-size: 0.85rem;">No comments yet. Be the first to add one.</p>`
+        : comments.map(c => {
+            const initials = (c.userName || 'U').split(' ').map(n => n[0]).join('').toUpperCase();
+            const roleLabel = c.userRole === 'superadmin' ? 'Super Admin'
+                : c.userRole === 'admin' ? 'Admin' : 'Freelancer';
+            const canDelete = currentUser.id === c.userId || admin;
+            const timeStr = formatDateTime(c.createdAt);
+            return `
+            <div class="comment-item">
+              <div class="comment-avatar">${initials}</div>
+              <div class="comment-body">
+                <div class="comment-header">
+                  <span class="comment-name">${sanitizeHTML(c.userName)}</span>
+                  <span class="comment-role badge badge-${c.userRole === 'freelancer' ? 'assigned' : 'approved'}">${roleLabel}</span>
+                  <span class="comment-time">${timeStr}</span>
+                  ${canDelete ? `<button class="btn-icon comment-delete" onclick="deleteComment('${c.id}', '${taskId}')" title="Delete">${icons.trash}</button>` : ''}
+                </div>
+                <div class="comment-text">${sanitizeHTML(c.message)}</div>
+              </div>
+            </div>
+          `;
+        }).join('');
+
+    return `
+    <div class="task-detail-section">
+      <h3>${icons.messageSquare} Comments (${comments.length})</h3>
+      <div class="comments-list">
+        ${commentsHTML}
+      </div>
+      <div class="comment-input-bar" style="margin-top: 16px;">
+        <textarea class="form-control" id="comment-input" rows="2" placeholder="Write a comment..."></textarea>
+        <button class="btn btn-primary btn-sm" style="margin-top: 8px;" onclick="postComment('${taskId}')" id="post-comment-btn">
+          ${icons.send} Post Comment
+        </button>
+      </div>
+    </div>
+  `;
+}
+
+window.postComment = async function (taskId) {
+    const input = document.getElementById('comment-input');
+    if (!input) return;
+    const message = input.value.trim();
+    if (!message) {
+        showToast('Please write a comment', 'error');
+        return;
+    }
+    try {
+        await addTaskComment({ taskId, message });
+        showToast('Comment posted', 'success');
+        await window.renderApp();
+    } catch (err) {
+        showToast(err.message, 'error');
+    }
+};
+
+window.deleteComment = async function (commentId, taskId) {
+    try {
+        await deleteTaskComment(commentId);
+        showToast('Comment deleted', 'info');
+        await window.renderApp();
+    } catch (err) {
+        showToast(err.message, 'error');
+    }
+};
+
+// ==========================================
+// WhatsApp Share
+// ==========================================
+
+window.shareToWhatsApp = async function (taskId) {
+    const task = await getTaskById(taskId);
+    if (!task) return;
+
+    const freelancer = task.assignedTo ? await getUserById(task.assignedTo) : null;
+    const text = [
+        `*Task #${task.slNo} — ${task.client}*`,
+        `Type: ${task.type}`,
+        `Status: ${task.status}`,
+        freelancer ? `Freelancer: ${freelancer.name}` : '',
+        task.completedCreative ? `\nCreative: ${task.completedCreative}` : '',
+    ].filter(Boolean).join('\n');
+
+    const url = `https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`;
+    window.open(url, '_blank');
+};
 
 function creativeStatusBadgeClass(creativeStatus) {
     const map = {

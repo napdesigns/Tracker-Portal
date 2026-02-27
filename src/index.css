@@ -1874,3 +1874,481 @@ select.form-control {
     flex: 0 0 220px;
   }
 }
+
+/* ==========================================
+   Task Comments
+   ========================================== */
+
+.comments-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.comment-item {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.comment-avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: var(--accent-gradient);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.comment-body {
+  flex: 1;
+  background: var(--bg-input);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 10px 14px;
+  min-width: 0;
+}
+
+.comment-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+  flex-wrap: wrap;
+}
+
+.comment-name {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.comment-role {
+  font-size: 0.65rem;
+  padding: 2px 8px;
+}
+
+.comment-time {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  margin-left: auto;
+}
+
+.comment-delete {
+  padding: 2px !important;
+  opacity: 0;
+  transition: opacity var(--transition-fast);
+}
+
+.comment-item:hover .comment-delete {
+  opacity: 1;
+}
+
+.comment-text {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.comment-input-bar {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.comment-input-bar textarea {
+  resize: vertical;
+  min-height: 60px;
+}
+
+/* ==========================================
+   Team Chat
+   ========================================== */
+
+.chat-page-body {
+  padding: 0 !important;
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - var(--header-height));
+}
+
+.chat-container {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  overflow: hidden;
+}
+
+.chat-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.chat-empty {
+  text-align: center;
+  color: var(--text-muted);
+  padding: 60px 20px;
+  margin: auto;
+}
+
+.chat-empty .empty-icon {
+  font-size: 3rem;
+  margin-bottom: 16px;
+  opacity: 0.5;
+}
+
+.chat-empty .empty-icon svg {
+  width: 48px;
+  height: 48px;
+}
+
+.chat-message {
+  display: flex;
+  gap: 10px;
+  align-items: flex-end;
+  max-width: 75%;
+}
+
+.chat-message.chat-message-mine {
+  margin-left: auto;
+  flex-direction: row-reverse;
+}
+
+.chat-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--accent-gradient);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.7rem;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.chat-bubble {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg) var(--radius-lg) var(--radius-lg) 4px;
+  padding: 10px 14px;
+  min-width: 80px;
+}
+
+.chat-bubble.mine {
+  background: rgba(108, 92, 231, 0.1);
+  border-color: rgba(108, 92, 231, 0.2);
+  border-radius: var(--radius-lg) var(--radius-lg) 4px var(--radius-lg);
+}
+
+.chat-sender {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--accent-primary);
+  margin-bottom: 3px;
+}
+
+.chat-role {
+  font-size: 0.65rem;
+  font-weight: 400;
+  color: var(--text-muted);
+}
+
+.chat-text {
+  font-size: 0.88rem;
+  color: var(--text-primary);
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.chat-time {
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  margin-top: 4px;
+  text-align: right;
+}
+
+.chat-input-bar {
+  display: flex;
+  gap: 10px;
+  padding: 16px 32px;
+  border-top: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+  align-items: center;
+}
+
+.chat-input {
+  flex: 1;
+  padding: 10px 16px;
+  background: var(--bg-input);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  font-size: 0.9rem;
+  color: var(--text-primary);
+  font-family: inherit;
+  transition: border-color var(--transition-fast);
+}
+
+.chat-input:focus {
+  border-color: var(--accent-primary);
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(108, 92, 231, 0.1);
+}
+
+.chat-input::placeholder {
+  color: var(--text-muted);
+}
+
+.chat-send-btn {
+  flex-shrink: 0;
+}
+
+/* ==========================================
+   Enhanced Mobile Responsive
+   ========================================== */
+
+@media (max-width: 768px) {
+  /* Page header improvements */
+  .page-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 16px 16px 16px 56px;
+  }
+
+  .page-header h1 {
+    font-size: 1.15rem;
+  }
+
+  .page-header > div {
+    width: 100%;
+  }
+
+  /* Table: make horizontally scrollable */
+  .data-table {
+    font-size: 0.8rem;
+  }
+
+  .data-table th,
+  .data-table td {
+    padding: 10px 10px;
+    font-size: 0.78rem;
+  }
+
+  .table-container {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Task detail grid */
+  .task-detail-grid {
+    grid-template-columns: 1fr 1fr !important;
+    gap: 10px;
+  }
+
+  .detail-field {
+    padding: 10px 12px;
+  }
+
+  .detail-field .field-value {
+    font-size: 0.85rem;
+  }
+
+  /* Toolbar improvements */
+  .toolbar-left {
+    width: 100%;
+  }
+
+  .toolbar-left .search-box {
+    flex: 1;
+  }
+
+  .toolbar-left .search-box input {
+    width: 100% !important;
+  }
+
+  .toolbar-left .filter-select {
+    flex: 1;
+    min-width: 0;
+  }
+
+  /* Date range on mobile */
+  .date-range-filter {
+    width: 100%;
+  }
+
+  .date-range-filter input[type="date"] {
+    flex: 1;
+    min-width: 0;
+  }
+
+  /* Bulk action bar */
+  .bulk-action-bar {
+    flex-wrap: wrap;
+    font-size: 0.78rem;
+    padding: 10px 14px;
+  }
+
+  /* Kanban mobile improvements */
+  .kanban-board {
+    padding-bottom: 24px;
+  }
+
+  .kanban-column {
+    flex: 0 0 260px;
+  }
+
+  /* Chat mobile */
+  .chat-messages {
+    padding: 16px;
+  }
+
+  .chat-input-bar {
+    padding: 12px 16px;
+  }
+
+  .chat-message {
+    max-width: 88%;
+  }
+
+  /* Modal on mobile */
+  .modal {
+    max-width: 100%;
+    margin: 8px;
+    border-radius: var(--radius-lg);
+  }
+
+  .modal-body {
+    padding: 16px;
+  }
+
+  /* Notification dropdown */
+  .notification-dropdown {
+    width: 300px;
+    right: -20px;
+  }
+
+  /* Pagination on mobile */
+  .pagination-controls {
+    flex-wrap: wrap;
+    gap: 4px;
+    padding: 12px 10px;
+  }
+
+  .page-btn {
+    min-width: 32px;
+    height: 32px;
+    font-size: 0.8rem;
+  }
+
+  /* Comments on mobile */
+  .comment-item {
+    gap: 8px;
+  }
+
+  .comment-avatar {
+    width: 28px;
+    height: 28px;
+    font-size: 0.65rem;
+  }
+
+  .comment-delete {
+    opacity: 1;
+  }
+}
+
+@media (max-width: 480px) {
+  .page-header {
+    padding-left: 52px;
+  }
+
+  .page-body {
+    padding: 16px 12px;
+  }
+
+  /* Single-column task detail */
+  .task-detail-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Stack page header buttons */
+  .page-header > div:last-child {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .btn-sm {
+    padding: 6px 10px;
+    font-size: 0.75rem;
+  }
+
+  /* Notification dropdown full-width */
+  .notification-dropdown {
+    position: fixed;
+    left: 8px;
+    right: 8px;
+    width: auto;
+    top: auto;
+  }
+
+  /* Chat bubble smaller */
+  .chat-message {
+    max-width: 92%;
+  }
+
+  .chat-bubble {
+    padding: 8px 12px;
+  }
+
+  .chat-text {
+    font-size: 0.82rem;
+  }
+
+  /* Month tabs scrollable */
+  .month-tabs {
+    gap: 2px;
+  }
+
+  .month-tab {
+    padding: 6px 12px;
+    font-size: 0.72rem;
+  }
+
+  /* Stat cards */
+  .stat-card {
+    padding: 16px;
+  }
+
+  .stat-card .stat-value {
+    font-size: 1.4rem;
+  }
+
+  .stat-card .stat-label {
+    font-size: 0.72rem;
+  }
+
+  /* Creative thumbnails smaller */
+  .creative-thumb {
+    width: 38px;
+    height: 38px;
+  }
+
+  .creative-placeholder {
+    width: 38px;
+    height: 38px;
+  }
+}

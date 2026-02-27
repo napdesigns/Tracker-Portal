@@ -297,3 +297,73 @@ CREATE POLICY "Authenticated users can delete creatives"
     ON storage.objects FOR DELETE
     TO authenticated
     USING (bucket_id = 'creatives');
+
+-- ==========================================
+-- Task Comments
+-- ==========================================
+
+CREATE TABLE IF NOT EXISTS task_comments (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    task_id UUID NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+    user_id UUID REFERENCES profiles(id) ON DELETE SET NULL,
+    user_name TEXT NOT NULL DEFAULT '',
+    user_role TEXT NOT NULL DEFAULT 'freelancer',
+    message TEXT NOT NULL DEFAULT '',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_task_comments_task_id ON task_comments(task_id);
+CREATE INDEX IF NOT EXISTS idx_task_comments_created_at ON task_comments(created_at);
+
+ALTER TABLE task_comments ENABLE ROW LEVEL SECURITY;
+
+-- Admins can see all comments, freelancers see comments on their assigned tasks
+CREATE POLICY "Admins can view all comments"
+    ON task_comments FOR SELECT
+    TO authenticated
+    USING (
+        EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('admin', 'superadmin'))
+        OR EXISTS (SELECT 1 FROM tasks WHERE tasks.id = task_comments.task_id AND tasks.assigned_to = auth.uid())
+    );
+
+CREATE POLICY "Authenticated users can add comments"
+    ON task_comments FOR INSERT
+    TO authenticated
+    WITH CHECK (user_id = auth.uid());
+
+CREATE POLICY "Users can delete own comments or admins can delete any"
+    ON task_comments FOR DELETE
+    TO authenticated
+    USING (
+        user_id = auth.uid()
+        OR EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('admin', 'superadmin'))
+    );
+
+-- ==========================================
+-- Chat Messages
+-- ==========================================
+
+CREATE TABLE IF NOT EXISTS chat_messages (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID REFERENCES profiles(id) ON DELETE SET NULL,
+    user_name TEXT NOT NULL DEFAULT '',
+    user_role TEXT NOT NULL DEFAULT 'freelancer',
+    message TEXT NOT NULL DEFAULT '',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_chat_messages_created_at ON chat_messages(created_at);
+
+ALTER TABLE chat_messages ENABLE ROW LEVEL SECURITY;
+
+-- All authenticated users can read chat messages
+CREATE POLICY "Authenticated users can view chat messages"
+    ON chat_messages FOR SELECT
+    TO authenticated
+    USING (true);
+
+-- Authenticated users can insert their own messages
+CREATE POLICY "Authenticated users can send chat messages"
+    ON chat_messages FOR INSERT
+    TO authenticated
+    WITH CHECK (user_id = auth.uid());

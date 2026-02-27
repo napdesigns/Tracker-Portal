@@ -821,6 +821,159 @@ export async function logActivity({ action, entityType, entityId, details }) {
     }).then(() => {}).catch(e => console.warn('Activity log error:', e));
 }
 
+// ==========================================
+// Task Comments
+// ==========================================
+
+const LOCAL_COMMENTS_KEY = 'crm_task_comments';
+
+function getLocalComments() {
+    return JSON.parse(localStorage.getItem(LOCAL_COMMENTS_KEY) || '[]');
+}
+
+function saveLocalComments(comments) {
+    localStorage.setItem(LOCAL_COMMENTS_KEY, JSON.stringify(comments));
+}
+
+export async function getTaskComments(taskId) {
+    if (!isSupabaseConfigured()) {
+        return getLocalComments()
+            .filter(c => c.taskId === taskId)
+            .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+    }
+
+    const { data, error } = await supabase
+        .from('task_comments')
+        .select('*')
+        .eq('task_id', taskId)
+        .order('created_at', { ascending: true });
+
+    if (error) {
+        console.warn('Comments table not available:', error.message);
+        return [];
+    }
+    return (data || []).map(toCamelCase);
+}
+
+export async function addTaskComment({ taskId, message }) {
+    const user = await getCurrentUser();
+    if (!user) throw new Error('Not logged in');
+
+    if (!isSupabaseConfigured()) {
+        const comments = getLocalComments();
+        const comment = {
+            id: generateId(),
+            taskId,
+            userId: user.id,
+            userName: user.name,
+            userRole: user.role,
+            message,
+            createdAt: new Date().toISOString(),
+        };
+        comments.push(comment);
+        saveLocalComments(comments);
+        return comment;
+    }
+
+    const { data, error } = await supabase
+        .from('task_comments')
+        .insert({
+            task_id: taskId,
+            user_id: user.id,
+            user_name: user.name,
+            user_role: user.role,
+            message,
+        })
+        .select()
+        .single();
+
+    if (error) throw new Error(error.message);
+    return toCamelCase(data);
+}
+
+export async function deleteTaskComment(commentId) {
+    if (!isSupabaseConfigured()) {
+        const comments = getLocalComments().filter(c => c.id !== commentId);
+        saveLocalComments(comments);
+        return;
+    }
+
+    const { error } = await supabase
+        .from('task_comments')
+        .delete()
+        .eq('id', commentId);
+
+    if (error) throw new Error(error.message);
+}
+
+// ==========================================
+// Chat Messages
+// ==========================================
+
+const LOCAL_CHAT_KEY = 'crm_chat_messages';
+
+function getLocalChatMessages() {
+    return JSON.parse(localStorage.getItem(LOCAL_CHAT_KEY) || '[]');
+}
+
+function saveLocalChatMessages(msgs) {
+    localStorage.setItem(LOCAL_CHAT_KEY, JSON.stringify(msgs));
+}
+
+export async function getChatMessages(limit = 100) {
+    if (!isSupabaseConfigured()) {
+        return getLocalChatMessages()
+            .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt))
+            .slice(-limit);
+    }
+
+    const { data, error } = await supabase
+        .from('chat_messages')
+        .select('*')
+        .order('created_at', { ascending: true })
+        .limit(limit);
+
+    if (error) {
+        console.warn('Chat table not available:', error.message);
+        return [];
+    }
+    return (data || []).map(toCamelCase);
+}
+
+export async function sendChatMessage(message) {
+    const user = await getCurrentUser();
+    if (!user) throw new Error('Not logged in');
+
+    if (!isSupabaseConfigured()) {
+        const msgs = getLocalChatMessages();
+        const msg = {
+            id: generateId(),
+            userId: user.id,
+            userName: user.name,
+            userRole: user.role,
+            message,
+            createdAt: new Date().toISOString(),
+        };
+        msgs.push(msg);
+        saveLocalChatMessages(msgs);
+        return msg;
+    }
+
+    const { data, error } = await supabase
+        .from('chat_messages')
+        .insert({
+            user_id: user.id,
+            user_name: user.name,
+            user_role: user.role,
+            message,
+        })
+        .select()
+        .single();
+
+    if (error) throw new Error(error.message);
+    return toCamelCase(data);
+}
+
 export async function getActivityLog(limit = 100) {
     if (!isSupabaseConfigured()) {
         return getLocalActivityLog()
