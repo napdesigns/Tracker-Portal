@@ -333,6 +333,8 @@ export async function addTask(taskData) {
         assigned_to: taskData.assignedTo || null,
         assigned_by: taskData.assignedBy || null,
         due_date: taskData.dueDate || null,
+        description: taskData.description || '',
+        source_link: taskData.sourceLink || '',
         status: 'assigned',
         assigned_at: new Date().toISOString(),
     };

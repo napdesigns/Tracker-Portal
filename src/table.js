@@ -734,6 +734,14 @@ async function showTaskModal(task) {
             </div>
           </div>
           <div class="form-group">
+            <label>Description</label>
+            <textarea class="form-control" id="task-description" rows="3" placeholder="Task description or notes...">${task ? sanitizeHTML(task.description || '') : ''}</textarea>
+          </div>
+          <div class="form-group">
+            <label>Source Link (Drive, Figma, etc.)</label>
+            <input type="url" class="form-control" id="task-source-link" value="${task ? sanitizeHTML(task.sourceLink || '') : ''}" placeholder="https://drive.google.com/..." />
+          </div>
+          <div class="form-group">
             <label>Reference Creative</label>
             <div class="upload-zone" id="upload-zone">
               <div class="upload-icon">${icons.file}</div>
@@ -822,6 +830,8 @@ async function showTaskModal(task) {
         const paymentStatus = overlay.querySelector('#task-payment').value;
         const editableFileShared = overlay.querySelector('#task-editable').value;
         const dueDate = overlay.querySelector('#task-due-date').value || null;
+        const description = overlay.querySelector('#task-description').value.trim();
+        const sourceLink = overlay.querySelector('#task-source-link').value.trim();
 
         if (!client) {
             showToast('Please enter a client name', 'error');
@@ -833,7 +843,7 @@ async function showTaskModal(task) {
                 date, client, type, assignedTo: assignedTo || null,
                 amount: parseFloat(amount) || 0, paymentStatus, editableFileShared,
                 referenceCreative: creativeData, month: new Date(date).getMonth(),
-                dueDate,
+                dueDate, description, sourceLink,
             });
             showToast('Task updated!', 'success');
         } else {
@@ -841,7 +851,7 @@ async function showTaskModal(task) {
                 date, client, type, assignedTo: assignedTo || null,
                 amount: parseFloat(amount) || 0, paymentStatus, editableFileShared,
                 referenceCreative: creativeData, assignedBy: user.id,
-                dueDate,
+                dueDate, description, sourceLink,
             });
             showToast('Task created!', 'success');
         }

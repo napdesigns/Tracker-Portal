@@ -249,6 +249,8 @@ function addTask(taskData) {
         assignedTo: taskData.assignedTo || null,
         assignedBy: taskData.assignedBy || null,
         dueDate: taskData.dueDate || null,
+        description: taskData.description || '',
+        sourceLink: taskData.sourceLink || '',
         status: 'assigned',
         assignedAt: new Date().toISOString(),
         pickedUpAt: null,

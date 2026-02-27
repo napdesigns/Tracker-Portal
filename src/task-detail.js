@@ -272,6 +272,22 @@ async function renderTaskDetail(taskId) {
         </div>
       </div>
 
+      ${task.description ? `
+      <div class="task-detail-section">
+        <h3>Description</h3>
+        <p style="color: var(--text-secondary); line-height: 1.6; white-space: pre-wrap;">${sanitizeHTML(task.description)}</p>
+      </div>
+      ` : ''}
+
+      ${task.sourceLink ? `
+      <div class="task-detail-section">
+        <h3>Source Link</h3>
+        <a href="${sanitizeHTML(task.sourceLink)}" target="_blank" rel="noopener noreferrer" style="color: var(--accent); word-break: break-all; display: inline-flex; align-items: center; gap: 6px;">
+          ${icons.pin} ${sanitizeHTML(task.sourceLink)}
+        </a>
+      </div>
+      ` : ''}
+
       <div class="task-detail-section">
         <h3>Reference Creative</h3>
         ${refCreativeHTML}

@@ -42,6 +42,8 @@ CREATE TABLE IF NOT EXISTS tasks (
     rejected_at TIMESTAMPTZ,
     rejection_reason TEXT,
     due_date DATE,
+    description TEXT DEFAULT '',
+    source_link TEXT DEFAULT '',
     month INTEGER GENERATED ALWAYS AS (EXTRACT(MONTH FROM date)::INTEGER - 1) STORED,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
