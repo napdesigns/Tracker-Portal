@@ -806,6 +806,9 @@ export async function getActivityLog(limit = 100) {
         .order('created_at', { ascending: false })
         .limit(limit);
 
-    if (error) throw new Error(error.message);
+    if (error) {
+        console.warn('Activity log table not available:', error.message);
+        return [];
+    }
     return (data || []).map(toCamelCase);
 }
