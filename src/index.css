@@ -338,6 +338,8 @@ input, select, textarea {
   flex: 1;
   margin-left: var(--sidebar-width);
   min-height: 100vh;
+  overflow-x: hidden;
+  max-width: calc(100vw - var(--sidebar-width));
 }
 
 .page-header {
@@ -1417,6 +1419,7 @@ select.form-control {
   }
   .main-content {
     margin-left: 0;
+    max-width: 100vw;
   }
   .page-header {
     padding-left: 60px;
