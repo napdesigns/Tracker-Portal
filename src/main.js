@@ -16,7 +16,7 @@ import { renderUsers } from './users.js';
 import { renderAnalytics } from './analytics.js';
 import { renderKanban, initKanbanDragDrop } from './kanban.js';
 import { renderActivityLog } from './activity-log.js';
-import { renderChat } from './chat.js';
+import { renderChat, renderChatBubble } from './chat.js';
 import { showToast } from './toast.js';
 import { renderNotificationBell } from './notifications.js';
 import icons from './icons.js';
@@ -114,6 +114,7 @@ async function renderAppShell(content) {
       </main>
     </div>
     <div class="toast-container" id="toast-container"></div>
+    ${window.appState.currentPage !== 'chat' ? await renderChatBubble() : ''}
   `;
 }
 
@@ -264,10 +265,20 @@ async function setupRealtimeNotifications() {
       event: 'INSERT',
       schema: 'public',
       table: 'chat_messages',
-    }, () => {
+    }, (payload) => {
+      const msg = payload.new;
+      // Only react to team messages or DMs involving current user
+      if (msg && msg.recipient_id && msg.recipient_id !== user.id && msg.user_id !== user.id) {
+        return;
+      }
       // Re-render if on chat page to show new messages
       if (window.appState.currentPage === 'chat') {
         renderApp();
+      }
+      // Refresh mini chat if open
+      const miniPanel = document.getElementById('mini-chat-panel');
+      if (miniPanel && miniPanel.classList.contains('open') && window.loadMiniChatMessages) {
+        window.loadMiniChatMessages();
       }
     })
     .subscribe();

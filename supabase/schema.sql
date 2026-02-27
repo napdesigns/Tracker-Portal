@@ -349,18 +349,26 @@ CREATE TABLE IF NOT EXISTS chat_messages (
     user_name TEXT NOT NULL DEFAULT '',
     user_role TEXT NOT NULL DEFAULT 'freelancer',
     message TEXT NOT NULL DEFAULT '',
+    recipient_id UUID REFERENCES profiles(id) ON DELETE SET NULL,
+    recipient_name TEXT DEFAULT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 CREATE INDEX IF NOT EXISTS idx_chat_messages_created_at ON chat_messages(created_at);
+CREATE INDEX IF NOT EXISTS idx_chat_messages_recipient ON chat_messages(recipient_id);
+CREATE INDEX IF NOT EXISTS idx_chat_messages_dm_pair ON chat_messages(user_id, recipient_id);
 
 ALTER TABLE chat_messages ENABLE ROW LEVEL SECURITY;
 
--- All authenticated users can read chat messages
-CREATE POLICY "Authenticated users can view chat messages"
+-- Users can see team messages (no recipient) or DMs involving them
+CREATE POLICY "Users can view team and own DM messages"
     ON chat_messages FOR SELECT
     TO authenticated
-    USING (true);
+    USING (
+        recipient_id IS NULL
+        OR user_id = auth.uid()
+        OR recipient_id = auth.uid()
+    );
 
 -- Authenticated users can insert their own messages
 CREATE POLICY "Authenticated users can send chat messages"

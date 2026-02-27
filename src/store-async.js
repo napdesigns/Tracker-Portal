@@ -920,19 +920,38 @@ function saveLocalChatMessages(msgs) {
     localStorage.setItem(LOCAL_CHAT_KEY, JSON.stringify(msgs));
 }
 
-export async function getChatMessages(limit = 100) {
+export async function getChatMessages(limit = 100, recipientId = null) {
+    const user = await getCurrentUser();
+    if (!user) return [];
+
     if (!isSupabaseConfigured()) {
-        return getLocalChatMessages()
+        const msgs = getLocalChatMessages();
+        const filtered = recipientId
+            ? msgs.filter(m =>
+                (m.recipientId === recipientId && m.userId === user.id) ||
+                (m.userId === recipientId && m.recipientId === user.id)
+            )
+            : msgs.filter(m => !m.recipientId);
+        return filtered
             .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt))
             .slice(-limit);
     }
 
-    const { data, error } = await supabase
+    let query = supabase
         .from('chat_messages')
         .select('*')
         .order('created_at', { ascending: true })
         .limit(limit);
 
+    if (recipientId) {
+        query = query.or(
+            `and(user_id.eq.${user.id},recipient_id.eq.${recipientId}),and(user_id.eq.${recipientId},recipient_id.eq.${user.id})`
+        );
+    } else {
+        query = query.is('recipient_id', null);
+    }
+
+    const { data, error } = await query;
     if (error) {
         console.warn('Chat table not available:', error.message);
         return [];
@@ -940,9 +959,15 @@ export async function getChatMessages(limit = 100) {
     return (data || []).map(toCamelCase);
 }
 
-export async function sendChatMessage(message) {
+export async function sendChatMessage(message, recipientId = null) {
     const user = await getCurrentUser();
     if (!user) throw new Error('Not logged in');
+
+    let recipientName = null;
+    if (recipientId) {
+        const recipient = await getUserById(recipientId);
+        recipientName = recipient ? recipient.name : 'Unknown';
+    }
 
     if (!isSupabaseConfigured()) {
         const msgs = getLocalChatMessages();
@@ -952,6 +977,8 @@ export async function sendChatMessage(message) {
             userName: user.name,
             userRole: user.role,
             message,
+            recipientId: recipientId || null,
+            recipientName,
             createdAt: new Date().toISOString(),
         };
         msgs.push(msg);
@@ -959,19 +986,88 @@ export async function sendChatMessage(message) {
         return msg;
     }
 
+    const insertData = {
+        user_id: user.id,
+        user_name: user.name,
+        user_role: user.role,
+        message,
+    };
+    if (recipientId) {
+        insertData.recipient_id = recipientId;
+        insertData.recipient_name = recipientName;
+    }
+
     const { data, error } = await supabase
         .from('chat_messages')
-        .insert({
-            user_id: user.id,
-            user_name: user.name,
-            user_role: user.role,
-            message,
-        })
+        .insert(insertData)
         .select()
         .single();
 
     if (error) throw new Error(error.message);
     return toCamelCase(data);
+}
+
+function buildConversationList(messages, currentUserId) {
+    const convos = new Map();
+
+    // Team chat is always first
+    const teamMsgs = messages.filter(m => !m.recipientId);
+    const latestTeamMsg = teamMsgs.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))[0];
+    convos.set('team', {
+        id: 'team',
+        name: 'Team Chat',
+        type: 'team',
+        lastMessage: latestTeamMsg || null,
+        lastMessageTime: latestTeamMsg?.createdAt || '1970-01-01',
+    });
+
+    // DM conversations: group by the "other" user
+    const dmMsgs = messages.filter(m => m.recipientId)
+        .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    for (const msg of dmMsgs) {
+        const otherId = msg.userId === currentUserId ? msg.recipientId : msg.userId;
+        const otherName = msg.userId === currentUserId ? msg.recipientName : msg.userName;
+        if (!convos.has(otherId)) {
+            convos.set(otherId, {
+                id: otherId,
+                name: otherName || 'Unknown',
+                type: 'dm',
+                lastMessage: msg,
+                lastMessageTime: msg.createdAt,
+            });
+        }
+    }
+
+    const result = Array.from(convos.values());
+    result.sort((a, b) => {
+        if (a.type === 'team') return -1;
+        if (b.type === 'team') return 1;
+        return new Date(b.lastMessageTime) - new Date(a.lastMessageTime);
+    });
+    return result;
+}
+
+export async function getChatConversations() {
+    const user = await getCurrentUser();
+    if (!user) return [];
+
+    if (!isSupabaseConfigured()) {
+        const msgs = getLocalChatMessages();
+        return buildConversationList(msgs, user.id);
+    }
+
+    const { data, error } = await supabase
+        .from('chat_messages')
+        .select('*')
+        .or(`recipient_id.is.null,user_id.eq.${user.id},recipient_id.eq.${user.id}`)
+        .order('created_at', { ascending: false })
+        .limit(500);
+
+    if (error) {
+        console.warn('Chat conversations error:', error.message);
+        return [];
+    }
+    return buildConversationList((data || []).map(toCamelCase), user.id);
 }
 
 export async function getActivityLog(limit = 100) {
