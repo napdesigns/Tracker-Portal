@@ -3,7 +3,7 @@
 // ==========================================
 
 import {
-    getCurrentUser, isAdmin, getTasks, getFreelancers, updateTask,
+    getCurrentUser, isAdmin, getTasks, getTasksByFreelancer, getFreelancers, updateTask,
     createPaymentTransaction, getPaymentTransactions,
     formatDate, sanitizeHTML, MONTHS,
 } from './store-async.js';
@@ -17,7 +17,7 @@ const COMPANY_NAME = 'CRM Tracker';
 async function renderPayments() {
     const user = await getCurrentUser();
     const adminUser = await isAdmin();
-    const allTasks = await getTasks();
+    const allTasks = adminUser ? await getTasks() : await getTasksByFreelancer(user.id);
     const freelancers = adminUser ? await getFreelancers() : [];
 
     // Filter state
@@ -147,28 +147,29 @@ async function renderPayments() {
     }
 
     // ---- Task Table ----
+    const colSpan = adminUser ? 7 : 5;
     const rowsHTML = tasks.length === 0
-        ? `<tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:30px;">No tasks found</td></tr>`
+        ? `<tr><td colspan="${colSpan}" style="text-align:center;color:var(--text-muted);padding:30px;">No tasks found</td></tr>`
         : tasks.map(t => {
             const fname = t.assignedTo ? (fMap[t.assignedTo] || 'Unknown') : '—';
             const status = t.paymentStatus || 'Unpaid';
             return `
             <tr>
               <td>#${t.slNo}</td>
-              <td>${sanitizeHTML(t.client)}</td>
+              ${adminUser ? `<td>${sanitizeHTML(t.client)}</td>` : ''}
               <td>${sanitizeHTML(t.type)}</td>
-              <td>${fname}</td>
+              ${adminUser ? `<td>${fname}</td>` : ''}
               <td>₹${(parseFloat(t.amount) || 0).toLocaleString('en-IN')}</td>
               <td><span class="badge badge-${status.toLowerCase()}">${status}</span></td>
+              ${adminUser ? `
               <td class="row-actions">
-                ${adminUser ? `
-                  <select class="form-control" style="font-size:0.75rem;padding:4px 8px;width:auto;" onchange="updatePaymentStatus('${t.id}', this.value)">
-                    <option value="Unpaid" ${status === 'Unpaid' ? 'selected' : ''}>Unpaid</option>
-                    <option value="Pending" ${status === 'Pending' ? 'selected' : ''}>Pending</option>
-                    <option value="Paid" ${status === 'Paid' ? 'selected' : ''}>Paid</option>
-                  </select>
-                ` : ''}
+                <select class="form-control" style="font-size:0.75rem;padding:4px 8px;width:auto;" onchange="updatePaymentStatus('${t.id}', this.value)">
+                  <option value="Unpaid" ${status === 'Unpaid' ? 'selected' : ''}>Unpaid</option>
+                  <option value="Pending" ${status === 'Pending' ? 'selected' : ''}>Pending</option>
+                  <option value="Paid" ${status === 'Paid' ? 'selected' : ''}>Paid</option>
+                </select>
               </td>
+              ` : ''}
             </tr>`;
         }).join('');
 
@@ -178,12 +179,12 @@ async function renderPayments() {
         <thead>
           <tr>
             <th>SL</th>
-            <th>Client</th>
+            ${adminUser ? '<th>Client</th>' : ''}
             <th>Type</th>
-            <th>Freelancer</th>
+            ${adminUser ? '<th>Freelancer</th>' : ''}
             <th>Amount</th>
             <th>Status</th>
-            <th>Action</th>
+            ${adminUser ? '<th>Action</th>' : ''}
           </tr>
         </thead>
         <tbody>
@@ -199,7 +200,7 @@ async function renderPayments() {
 
     return `
     <div class="page-header">
-      <h1>${icons.dollarSign} Payments</h1>
+      <h1>${icons.dollarSign} ${adminUser ? 'Payments' : 'My Payments'}</h1>
       <div style="display:flex;gap:8px;">
         ${adminUser ? `<button class="btn btn-sm btn-outline" onclick="exportPaymentsCSV()">
           ${icons.download} Export CSV
@@ -212,7 +213,7 @@ async function renderPayments() {
         <div class="stat-card purple">
           <div class="stat-icon">${icons.dollarSign}</div>
           <div class="stat-value">₹${totalAmount.toLocaleString('en-IN')}</div>
-          <div class="stat-label">Total</div>
+          <div class="stat-label">${adminUser ? 'Total' : 'My Total'}</div>
         </div>
         <div class="stat-card green">
           <div class="stat-icon">${icons.checkCircle}</div>

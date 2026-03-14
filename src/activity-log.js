@@ -2,7 +2,7 @@
 // CRM Tracker — Activity Log Page
 // ==========================================
 
-import { getActivityLog, isAdmin, formatDateTime, sanitizeHTML } from './store-async.js';
+import { getActivityLog, isAdmin, getCurrentUser, formatDateTime, sanitizeHTML } from './store-async.js';
 import icons from './icons.js';
 
 const ACTION_ICONS = {
@@ -27,7 +27,13 @@ const ACTION_LABELS = {
 
 async function renderActivityLog() {
     const adminUser = await isAdmin();
-    const log = await getActivityLog(200);
+    const user = await getCurrentUser();
+    let log = await getActivityLog(200);
+
+    // Freelancers only see their own activity
+    if (!adminUser && user) {
+        log = log.filter(entry => entry.userId === user.id);
+    }
 
     let tableRows = '';
     if (log.length === 0) {
@@ -68,7 +74,7 @@ async function renderActivityLog() {
 
     return `
     <div class="page-header">
-      <h1>Activity Log</h1>
+      <h1>${adminUser ? 'Activity Log' : 'My Activity'}</h1>
     </div>
     <div class="page-body">
       <div class="table-container">

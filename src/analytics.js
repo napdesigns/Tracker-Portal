@@ -3,7 +3,7 @@
 // ==========================================
 
 import {
-    getCurrentUser, isAdmin, getTasks, getFreelancers,
+    getCurrentUser, isAdmin, getTasks, getTasksByFreelancer, getFreelancers,
     getStats, MONTHS, formatDate, sanitizeHTML,
 } from './store-async.js';
 import icons from './icons.js';
@@ -11,7 +11,7 @@ import icons from './icons.js';
 async function renderAnalytics() {
     const user = await getCurrentUser();
     const adminUser = await isAdmin();
-    let allTasks = await getTasks();
+    let allTasks = adminUser ? await getTasks() : await getTasksByFreelancer(user.id);
     const freelancers = adminUser ? await getFreelancers() : [];
 
     // Analytics filter state
@@ -206,7 +206,7 @@ async function renderAnalytics() {
 
     return `
     <div class="page-header">
-      <h1>Analytics</h1>
+      <h1>${adminUser ? 'Analytics' : 'My Analytics'}</h1>
       <span style="color: var(--text-secondary); font-size: 0.85rem;">${currentYear} Overview</span>
     </div>
     <div class="page-body">
@@ -222,8 +222,8 @@ async function renderAnalytics() {
             <option value="all" ${afFreelancer === 'all' ? 'selected' : ''}>All Freelancers</option>
             ${freelancerFilterOpts}
           </select>
-          ` : ''}
           <input type="text" class="form-control" style="font-size:0.8rem;padding:6px 10px;width:150px;" placeholder="Filter by client..." value="${sanitizeHTML(afClient)}" oninput="filterAnalytics('client', this.value)" />
+          ` : ''}
           <input type="date" class="form-control" style="font-size:0.8rem;padding:6px 10px;" value="${afDateFrom}" onchange="filterAnalytics('dateFrom', this.value)" title="From date" />
           <input type="date" class="form-control" style="font-size:0.8rem;padding:6px 10px;" value="${afDateTo}" onchange="filterAnalytics('dateTo', this.value)" title="To date" />
           ${(afMonth !== 'all' || afFreelancer !== 'all' || afClient || afDateFrom || afDateTo) ? `<button class="btn btn-sm btn-outline" onclick="clearAnalyticsFilters()">Clear</button>` : ''}
