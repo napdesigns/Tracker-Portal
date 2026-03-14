@@ -320,12 +320,21 @@ async function renderTaskDetail(taskId) {
 
       ${await renderCommentsSection(taskId, currentUser)}
 
-      ${adminUser && task.completedCreative ? `
+      ${task.completedCreative ? `
       <div class="task-detail-section">
         <h3>${icons.share} Share Creative</h3>
         <div style="display: flex; gap: 10px; flex-wrap: wrap;">
           <button class="btn btn-sm" style="background: #25D366; color: #fff; border: none;" onclick="shareToWhatsApp('${task.id}')">
-            ${icons.whatsapp} Share to WhatsApp
+            ${icons.whatsapp} WhatsApp
+          </button>
+          <button class="btn btn-sm" style="background: #EA4335; color: #fff; border: none;" onclick="shareViaEmail('${task.id}')">
+            ${icons.mail} Email
+          </button>
+          <button class="btn btn-sm btn-outline" onclick="downloadCreative('${task.id}')">
+            ${icons.download} Download
+          </button>
+          <button class="btn btn-sm btn-outline" onclick="copyCreativeLink('${task.id}')">
+            ${icons.link} Copy Link
           </button>
         </div>
       </div>
@@ -428,6 +437,72 @@ window.shareToWhatsApp = async function (taskId) {
 
     const url = `https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`;
     window.open(url, '_blank');
+};
+
+// ==========================================
+// Email Share
+// ==========================================
+
+window.shareViaEmail = async function (taskId) {
+    const task = await getTaskById(taskId);
+    if (!task) return;
+
+    const freelancer = task.assignedTo ? await getUserById(task.assignedTo) : null;
+    const subject = `Creative: Task #${task.slNo} — ${task.client} (${task.type})`;
+    const body = [
+        `Task #${task.slNo} — ${task.client}`,
+        `Type: ${task.type}`,
+        `Status: ${task.status}`,
+        freelancer ? `Freelancer: ${freelancer.name}` : '',
+        task.completedCreative ? `\nCreative: ${task.completedCreative}` : '',
+    ].filter(Boolean).join('\n');
+
+    window.open(`mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`);
+};
+
+// ==========================================
+// Download Creative
+// ==========================================
+
+window.downloadCreative = async function (taskId) {
+    const task = await getTaskById(taskId);
+    if (!task || !task.completedCreative) {
+        showToast('No creative file available', 'error');
+        return;
+    }
+    const a = document.createElement('a');
+    a.href = task.completedCreative;
+    a.download = `creative-${task.slNo}-${task.client || 'task'}`;
+    a.target = '_blank';
+    a.rel = 'noopener';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+};
+
+// ==========================================
+// Copy Creative Link
+// ==========================================
+
+window.copyCreativeLink = async function (taskId) {
+    const task = await getTaskById(taskId);
+    if (!task || !task.completedCreative) {
+        showToast('No creative link available', 'error');
+        return;
+    }
+    try {
+        await navigator.clipboard.writeText(task.completedCreative);
+        showToast('Link copied to clipboard!', 'success');
+    } catch {
+        // Fallback for older browsers
+        const input = document.createElement('input');
+        input.value = task.completedCreative;
+        document.body.appendChild(input);
+        input.select();
+        document.execCommand('copy');
+        document.body.removeChild(input);
+        showToast('Link copied to clipboard!', 'success');
+    }
 };
 
 function creativeStatusBadgeClass(creativeStatus) {

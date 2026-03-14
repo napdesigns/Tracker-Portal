@@ -19,6 +19,7 @@ async function renderPayments() {
     const pf = window.appState.paymentPageFilter || 'all';
     const ff = window.appState.paymentFreelancerFilter || 'all';
     const mf = window.appState.paymentMonthFilter ?? 'all';
+    const viewMode = window.appState.paymentViewMode || 'table'; // 'table' or 'summary'
 
     let tasks = allTasks;
     if (pf !== 'all') tasks = tasks.filter(t => (t.paymentStatus || 'Unpaid') === pf);
@@ -43,6 +44,57 @@ async function renderPayments() {
         `<option value="${i}" ${mf === String(i) ? 'selected' : ''}>${m}</option>`
     ).join('');
 
+    // ---- Freelancer Payout Summary ----
+    let summaryHTML = '';
+    if (adminUser && viewMode === 'summary') {
+        const freelancerSummary = freelancers.map(f => {
+            const fTasks = tasks.filter(t => t.assignedTo === f.id);
+            const total = fTasks.reduce((s, t) => s + (parseFloat(t.amount) || 0), 0);
+            const paid = fTasks.filter(t => t.paymentStatus === 'Paid').reduce((s, t) => s + (parseFloat(t.amount) || 0), 0);
+            const pending = fTasks.filter(t => t.paymentStatus === 'Pending').reduce((s, t) => s + (parseFloat(t.amount) || 0), 0);
+            const unpaid = fTasks.filter(t => !t.paymentStatus || t.paymentStatus === 'Unpaid').reduce((s, t) => s + (parseFloat(t.amount) || 0), 0);
+            const taskCount = fTasks.length;
+            return { id: f.id, name: f.name, total, paid, pending, unpaid, taskCount };
+        }).filter(f => f.taskCount > 0).sort((a, b) => b.total - a.total);
+
+        summaryHTML = `
+        <div class="table-container">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Freelancer</th>
+                <th>Tasks</th>
+                <th>Total</th>
+                <th>Paid</th>
+                <th>Pending</th>
+                <th>Unpaid</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${freelancerSummary.length === 0
+                ? `<tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:30px;">No data</td></tr>`
+                : freelancerSummary.map(f => `
+                <tr>
+                  <td><strong>${sanitizeHTML(f.name)}</strong></td>
+                  <td>${f.taskCount}</td>
+                  <td>₹${f.total.toLocaleString('en-IN')}</td>
+                  <td style="color:var(--status-approved);">₹${f.paid.toLocaleString('en-IN')}</td>
+                  <td style="color:var(--payment-pending);">₹${f.pending.toLocaleString('en-IN')}</td>
+                  <td style="color:var(--status-rejected);">₹${f.unpaid.toLocaleString('en-IN')}</td>
+                  <td class="row-actions">
+                    <button class="btn btn-sm btn-outline" onclick="bulkPayFreelancer('${f.id}')" title="Mark all as Paid">
+                      ${icons.checkCircle} Pay All
+                    </button>
+                  </td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>`;
+    }
+
+    // ---- Task Table ----
     const rowsHTML = tasks.length === 0
         ? `<tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:30px;">No tasks found</td></tr>`
         : tasks.map(t => {
@@ -68,9 +120,34 @@ async function renderPayments() {
             </tr>`;
         }).join('');
 
+    const tableHTML = `
+    <div class="table-container">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>SL</th>
+            <th>Client</th>
+            <th>Type</th>
+            <th>Freelancer</th>
+            <th>Amount</th>
+            <th>Status</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rowsHTML}
+        </tbody>
+      </table>
+    </div>`;
+
     return `
     <div class="page-header">
       <h1>${icons.dollarSign} Payments</h1>
+      <div style="display:flex;gap:8px;">
+        ${adminUser ? `<button class="btn btn-sm btn-outline" onclick="exportPaymentsCSV()">
+          ${icons.download} Export CSV
+        </button>` : ''}
+      </div>
     </div>
     <div class="page-body">
       <!-- Payment Stats -->
@@ -97,7 +174,7 @@ async function renderPayments() {
         </div>
       </div>
 
-      <!-- Filters -->
+      <!-- Filters + View Toggle -->
       <div class="toolbar" style="margin-bottom: 16px;">
         <div class="toolbar-filters">
           <select class="form-control" style="font-size:0.8rem;padding:6px 10px;" onchange="filterPayments('status', this.value)">
@@ -117,27 +194,19 @@ async function renderPayments() {
             ${monthOptions}
           </select>
         </div>
+        ${adminUser ? `
+        <div style="display:flex;gap:4px;">
+          <button class="btn btn-sm ${viewMode === 'table' ? 'btn-primary' : 'btn-outline'}" onclick="switchPaymentView('table')">
+            ${icons.table} Tasks
+          </button>
+          <button class="btn btn-sm ${viewMode === 'summary' ? 'btn-primary' : 'btn-outline'}" onclick="switchPaymentView('summary')">
+            ${icons.users} Summary
+          </button>
+        </div>
+        ` : ''}
       </div>
 
-      <!-- Payments Table -->
-      <div class="table-container">
-        <table class="data-table">
-          <thead>
-            <tr>
-              <th>SL</th>
-              <th>Client</th>
-              <th>Type</th>
-              <th>Freelancer</th>
-              <th>Amount</th>
-              <th>Status</th>
-              <th>Action</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${rowsHTML}
-          </tbody>
-        </table>
-      </div>
+      ${viewMode === 'summary' && adminUser ? summaryHTML : tableHTML}
     </div>
   `;
 }
@@ -149,11 +218,87 @@ window.filterPayments = function (key, value) {
     window.renderApp();
 };
 
+window.switchPaymentView = function (mode) {
+    window.appState.paymentViewMode = mode;
+    window.renderApp();
+};
+
 window.updatePaymentStatus = async function (taskId, status) {
     try {
         await updateTask(taskId, { paymentStatus: status });
         showToast(`Payment status updated to ${status}`, 'success');
         await window.renderApp();
+    } catch (err) {
+        showToast(err.message, 'error');
+    }
+};
+
+// Bulk mark all tasks for a freelancer as Paid
+window.bulkPayFreelancer = async function (freelancerId) {
+    try {
+        const allTasks = await getTasks();
+        const unpaidTasks = allTasks.filter(t =>
+            t.assignedTo === freelancerId &&
+            (t.paymentStatus !== 'Paid')
+        );
+
+        if (unpaidTasks.length === 0) {
+            showToast('All tasks already paid', 'info');
+            return;
+        }
+
+        for (const t of unpaidTasks) {
+            await updateTask(t.id, { paymentStatus: 'Paid' });
+        }
+
+        showToast(`Marked ${unpaidTasks.length} task(s) as Paid`, 'success');
+        await window.renderApp();
+    } catch (err) {
+        showToast(err.message, 'error');
+    }
+};
+
+// Export filtered payments as CSV
+window.exportPaymentsCSV = async function () {
+    try {
+        const allTasks = await getTasks();
+        const freelancers = await getFreelancers();
+        const fMap = {};
+        freelancers.forEach(f => { fMap[f.id] = f.name; });
+
+        // Apply current filters
+        const pf = window.appState.paymentPageFilter || 'all';
+        const ff = window.appState.paymentFreelancerFilter || 'all';
+        const mf = window.appState.paymentMonthFilter ?? 'all';
+
+        let tasks = allTasks;
+        if (pf !== 'all') tasks = tasks.filter(t => (t.paymentStatus || 'Unpaid') === pf);
+        if (ff !== 'all') tasks = tasks.filter(t => t.assignedTo === ff);
+        if (mf !== 'all') tasks = tasks.filter(t => new Date(t.date).getMonth() === parseInt(mf));
+
+        const headers = ['SL No', 'Date', 'Client', 'Type', 'Freelancer', 'Amount', 'Payment Status'];
+        const rows = tasks.map(t => [
+            t.slNo,
+            t.date,
+            `"${(t.client || '').replace(/"/g, '""')}"`,
+            t.type,
+            `"${(fMap[t.assignedTo] || 'Unknown').replace(/"/g, '""')}"`,
+            parseFloat(t.amount) || 0,
+            t.paymentStatus || 'Unpaid',
+        ]);
+
+        const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `payments-export-${new Date().toISOString().split('T')[0]}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+
+        showToast('CSV exported successfully', 'success');
     } catch (err) {
         showToast(err.message, 'error');
     }

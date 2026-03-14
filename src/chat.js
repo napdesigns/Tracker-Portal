@@ -35,12 +35,19 @@ function renderAttachment(msg) {
     if (!msg.attachmentUrl) return '';
     const name = msg.attachmentName || 'Attachment';
     const isImage = /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(name);
+    const isAudio = /\.(webm|mp3|wav|ogg|m4a)$/i.test(name);
     if (isImage) {
         return `
         <div class="chat-attachment-preview">
           <a href="${msg.attachmentUrl}" target="_blank" rel="noopener">
             <img src="${msg.attachmentUrl}" alt="${sanitize(name)}" loading="lazy" />
           </a>
+        </div>`;
+    }
+    if (isAudio) {
+        return `
+        <div class="chat-audio">
+          <audio controls preload="metadata" src="${msg.attachmentUrl}"></audio>
         </div>`;
     }
     return `
@@ -188,12 +195,22 @@ async function renderChat() {
               <span class="remove-file" onclick="clearChatFile()">&times;</span>
             </div>
           </div>
+          <div id="chat-rec-bar" class="voice-recorder-bar" style="display:none;margin:4px 16px;">
+            <span class="rec-dot"></span>
+            <span class="rec-timer" id="chat-rec-timer">0:00</span>
+            <span>Recording...</span>
+            <button class="btn btn-sm btn-primary" onclick="stopVoiceRecording()" style="margin-left:auto;">${icons.send} Send</button>
+            <span class="rec-cancel" onclick="cancelVoiceRecording()">Cancel</span>
+          </div>
           <div class="chat-input-bar">
             <label class="chat-file-input-label" title="Attach file">
               ${icons.paperclip}
               <input type="file" id="chat-file-input" style="display:none;" onchange="onChatFileSelected(this)" />
             </label>
             <input type="text" class="chat-input" id="chat-input" placeholder="Type a message to ${sanitize(activeLabel)}..." autocomplete="off" style="flex:1;" />
+            <button class="voice-record-btn" id="chat-mic-btn" onclick="startVoiceRecording('chat')" title="Record voice message">
+              ${icons.mic}
+            </button>
             <button class="btn btn-primary chat-send-btn" id="chat-send-btn" onclick="handleSendChat()">
               ${icons.send} Send
             </button>
@@ -204,6 +221,95 @@ async function renderChat() {
     ${dmModalHTML}
   `;
 }
+
+// ==========================================
+// Voice Recording
+// ==========================================
+
+let mediaRecorder = null;
+let audioChunks = [];
+let recordingTimer = null;
+let recordingSeconds = 0;
+let recordingTarget = null;
+
+function formatRecTime(sec) {
+    const m = Math.floor(sec / 60);
+    const s = sec % 60;
+    return `${m}:${s.toString().padStart(2, '0')}`;
+}
+
+window.startVoiceRecording = async function (target) {
+    try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        recordingTarget = target;
+        audioChunks = [];
+        recordingSeconds = 0;
+
+        mediaRecorder = new MediaRecorder(stream);
+        mediaRecorder.ondataavailable = (e) => {
+            if (e.data.size > 0) audioChunks.push(e.data);
+        };
+        mediaRecorder.onstop = () => {
+            stream.getTracks().forEach(t => t.stop());
+            clearInterval(recordingTimer);
+            recordingTimer = null;
+
+            if (audioChunks.length === 0) return;
+            const blob = new Blob(audioChunks, { type: 'audio/webm' });
+            const file = new File([blob], `voice-${Date.now()}.webm`, { type: 'audio/webm' });
+
+            if (recordingTarget === 'mini') {
+                pendingMiniChatFile = file;
+                window.handleSendMiniChat();
+            } else {
+                pendingChatFile = file;
+                window.handleSendChat();
+            }
+        };
+
+        mediaRecorder.start();
+        recordingTimer = setInterval(() => {
+            recordingSeconds++;
+            const timerEl = document.getElementById(`${target}-rec-timer`);
+            if (timerEl) timerEl.textContent = formatRecTime(recordingSeconds);
+            if (recordingSeconds >= 120) window.stopVoiceRecording();
+        }, 1000);
+
+        const recBar = document.getElementById(`${target}-rec-bar`);
+        if (recBar) recBar.style.display = 'flex';
+        const micBtn = document.getElementById(`${target}-mic-btn`);
+        if (micBtn) micBtn.classList.add('recording');
+    } catch (err) {
+        showToast('Microphone access denied', 'error');
+    }
+};
+
+window.stopVoiceRecording = function () {
+    if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+        mediaRecorder.stop();
+    }
+    const recBar = document.getElementById(`${recordingTarget}-rec-bar`);
+    if (recBar) recBar.style.display = 'none';
+    const micBtn = document.getElementById(`${recordingTarget}-mic-btn`);
+    if (micBtn) micBtn.classList.remove('recording');
+};
+
+window.cancelVoiceRecording = function () {
+    audioChunks = [];
+    if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+        mediaRecorder.onstop = () => {
+            mediaRecorder.stream.getTracks().forEach(t => t.stop());
+        };
+        mediaRecorder.stop();
+    }
+    clearInterval(recordingTimer);
+    recordingTimer = null;
+    const recBar = document.getElementById(`${recordingTarget}-rec-bar`);
+    if (recBar) recBar.style.display = 'none';
+    const micBtn = document.getElementById(`${recordingTarget}-mic-btn`);
+    if (micBtn) micBtn.classList.remove('recording');
+    showToast('Recording cancelled', 'info');
+};
 
 // ==========================================
 // Chat Page Handlers
@@ -383,12 +489,21 @@ async function renderChatBubble() {
           <span class="remove-file" onclick="clearMiniChatFile()">&times;</span>
         </div>
       </div>
+      <div id="mini-rec-bar" class="voice-recorder-bar" style="display:none;margin:4px 8px;padding:6px 10px;font-size:0.8rem;">
+        <span class="rec-dot"></span>
+        <span class="rec-timer" id="mini-rec-timer">0:00</span>
+        <button class="btn btn-sm btn-primary" onclick="stopVoiceRecording()" style="margin-left:auto;font-size:0.72rem;">${icons.send}</button>
+        <span class="rec-cancel" onclick="cancelVoiceRecording()">✕</span>
+      </div>
       <div class="mini-chat-input-bar">
         <label class="chat-file-input-label" title="Attach file" style="padding:4px;">
           ${icons.paperclip}
           <input type="file" id="mini-chat-file-input" style="display:none;" onchange="onMiniChatFileSelected(this)" />
         </label>
         <input type="text" class="chat-input" id="mini-chat-input" placeholder="Type a message..." autocomplete="off" style="flex:1;" />
+        <button class="voice-record-btn" id="mini-mic-btn" onclick="startVoiceRecording('mini')" title="Voice message" style="padding:4px;">
+          ${icons.mic}
+        </button>
         <button class="btn btn-primary btn-sm" onclick="handleSendMiniChat()">${icons.send}</button>
       </div>
     </div>

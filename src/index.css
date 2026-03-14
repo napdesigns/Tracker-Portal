@@ -2105,6 +2105,92 @@ select.form-control {
   margin-left: 4px;
 }
 
+/* Voice Recorder */
+.voice-recorder-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background: var(--bg-card);
+  border: 1px solid var(--status-rejected);
+  border-radius: 8px;
+  animation: pulse-border 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse-border {
+  0%, 100% { border-color: var(--status-rejected); }
+  50% { border-color: transparent; }
+}
+
+.voice-recorder-bar .rec-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--status-rejected);
+  animation: rec-blink 1s ease-in-out infinite;
+}
+
+@keyframes rec-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+.voice-recorder-bar .rec-timer {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+  min-width: 40px;
+}
+
+.voice-recorder-bar .rec-cancel {
+  margin-left: auto;
+  cursor: pointer;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}
+
+.voice-recorder-bar .rec-cancel:hover {
+  color: var(--status-rejected);
+}
+
+.voice-record-btn {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 6px;
+  color: var(--text-secondary);
+  background: none;
+  border: none;
+  transition: background 0.15s, color 0.15s;
+}
+
+.voice-record-btn:hover {
+  background: var(--bg-hover);
+  color: var(--status-rejected);
+}
+
+.voice-record-btn.recording {
+  color: var(--status-rejected);
+  animation: rec-blink 1s ease-in-out infinite;
+}
+
+.voice-record-btn svg {
+  width: 20px;
+  height: 20px;
+}
+
+.chat-audio {
+  margin-top: 6px;
+}
+
+.chat-audio audio {
+  max-width: 240px;
+  height: 36px;
+  border-radius: 18px;
+}
+
 /* ==========================================
    Team Chat
    ========================================== */
