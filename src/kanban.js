@@ -116,17 +116,17 @@ async function renderKanban() {
       </div>
     </div>
     <div class="page-body">
+      ${adminUser ? `
       <div class="toolbar" style="margin-bottom: 12px;">
         <div class="toolbar-filters">
           <input type="text" class="form-control" style="font-size:0.8rem;padding:6px 10px;width:180px;" placeholder="Filter by client..." value="${sanitizeHTML(kcf)}" oninput="filterKanban('client', this.value)" />
-          ${adminUser ? `
           <select class="form-control" style="font-size:0.8rem;padding:6px 10px;" onchange="filterKanban('freelancer', this.value)">
             <option value="all" ${kff === 'all' ? 'selected' : ''}>All Freelancers</option>
             ${freelancerFilterOptions}
           </select>
-          ` : ''}
         </div>
       </div>
+      ` : ''}
       <div class="kanban-board">${columnsHTML}</div>
     </div>
   `;
