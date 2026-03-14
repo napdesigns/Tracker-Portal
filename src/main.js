@@ -22,7 +22,6 @@ import { renderChat, renderChatBubble } from './chat.js';
 import { renderProfile } from './profile.js';
 import { renderClients } from './clients.js';
 import { renderWorkload } from './workload.js';
-import { renderTimeTracking } from './timetracking.js';
 import { renderGantt } from './gantt.js';
 import { renderInvoice } from './invoice.js';
 import { showToast } from './toast.js';
@@ -96,7 +95,6 @@ async function renderAppShell(content) {
   if (adminUser) {
     navItems.push({ id: 'workload', icon: icons.analytics, label: 'Workload' });
   }
-  navItems.push({ id: 'timetracking', icon: icons.clock, label: 'Time Track' });
   navItems.push({ id: 'profile', icon: icons.users, label: 'My Profile' });
 
   const initials = user.name.split(' ').map(n => n[0]).join('').toUpperCase();
@@ -288,9 +286,6 @@ async function renderApp() {
         break;
       case 'workload':
         pageContent = (await isAdmin()) ? await renderWorkload() : await renderDashboard();
-        break;
-      case 'timetracking':
-        pageContent = await renderTimeTracking();
         break;
       case 'profile':
         pageContent = await renderProfile();
