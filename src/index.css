@@ -2251,6 +2251,25 @@ select.form-control {
   color: var(--accent-primary);
 }
 
+/* --- Chat Search Bar --- */
+.chat-search-bar {
+  margin-left: auto;
+}
+
+.chat-search-input {
+  width: 200px;
+  font-size: 0.8rem !important;
+  padding: 6px 10px !important;
+  border-radius: 8px;
+}
+
+.chat-text mark {
+  background: rgba(108, 92, 231, 0.25);
+  color: inherit;
+  padding: 1px 2px;
+  border-radius: 2px;
+}
+
 /* --- Recipient Indicator Bar --- */
 .chat-recipient-bar {
   padding: 8px 24px;
@@ -2610,6 +2629,12 @@ select.form-control {
   .chat-main-header {
     padding: 10px 16px;
     font-size: 0.85rem;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .chat-search-input {
+    width: 100% !important;
   }
 
   .chat-recipient-bar {

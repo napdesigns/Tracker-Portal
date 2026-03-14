@@ -245,7 +245,7 @@ async function renderTaskDetail(taskId) {
         </div>
         <div class="detail-field">
           <div class="field-label">Due Date</div>
-          <div class="field-value ${task.dueDate && task.dueDate < new Date().toISOString().split('T')[0] && !['approved', 'rejected'].includes(task.status) ? 'overdue-text' : ''}">${task.dueDate ? formatDate(task.dueDate) : '—'}</div>
+          <div class="field-value ${task.dueDate && task.dueDate.split('T')[0] < new Date().toISOString().split('T')[0] && !['approved', 'rejected'].includes(task.status) ? 'overdue-text' : ''}">${task.dueDate ? (task.dueDate.includes('T') ? formatDateTime(task.dueDate) : formatDate(task.dueDate)) : '—'}</div>
         </div>
         <div class="detail-field">
           <div class="field-label">Assigned To</div>

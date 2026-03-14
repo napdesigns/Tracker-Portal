@@ -54,7 +54,7 @@ async function renderKanban() {
             ? `<div class="kanban-empty">No tasks</div>`
             : colTasks.map(t => {
                 const freelancer = t.assignedTo ? freelancerMap[t.assignedTo] : null;
-                const isOverdue = t.dueDate && t.dueDate < new Date().toISOString().split('T')[0] && !['approved', 'rejected'].includes(t.status);
+                const isOverdue = t.dueDate && t.dueDate.split('T')[0] < new Date().toISOString().split('T')[0] && !['approved', 'rejected'].includes(t.status);
                 return `
             <div class="kanban-card ${isOverdue ? 'overdue' : ''}"
                  draggable="true"

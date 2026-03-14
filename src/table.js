@@ -8,7 +8,7 @@ import {
     pickUpTask, submitTask, approveTask, rejectTask, requestIteration, resolveIteration,
     addTask, updateTask, uploadCompletedCreative, getTaskById,
     uploadCreativeFile,
-    MONTHS, formatDate, sanitizeHTML,
+    MONTHS, formatDate, formatDateTime, sanitizeHTML,
 } from './store-async.js';
 import { showToast } from './toast.js';
 import { validateImageFile } from './validation.js';
@@ -260,7 +260,7 @@ async function renderTable() {
           <td><span class="badge badge-${creativeStatusBadgeClass(t.creativeStatus)}">${sanitizeHTML(t.creativeStatus || 'Pending')}</span></td>
           <td>₹${(parseFloat(t.amount) || 0).toLocaleString('en-IN')}</td>
           <td><span class="badge badge-${(t.paymentStatus || 'unpaid').toLowerCase()}">${sanitizeHTML(t.paymentStatus) || 'Unpaid'}</span></td>
-          <td class="${t.dueDate && t.dueDate < new Date().toISOString().split('T')[0] && !['approved', 'rejected'].includes(t.status) ? 'overdue-cell' : ''}">${t.dueDate ? formatDate(t.dueDate) : '—'}</td>
+          <td class="${t.dueDate && t.dueDate.split('T')[0] < new Date().toISOString().split('T')[0] && !['approved', 'rejected'].includes(t.status) ? 'overdue-cell' : ''}">${t.dueDate ? (t.dueDate.includes('T') ? formatDateTime(t.dueDate) : formatDate(t.dueDate)) : '—'}</td>
           <td>${adminUser ? freelancerName : ''}</td>
           <td>${iterCount > 0 ? `<span class="badge badge-iteration">${iterCount}</span>` : '0'}</td>
           <td class="row-actions" onclick="event.stopPropagation();">${actionsHTML}</td>
@@ -712,25 +712,21 @@ async function showTaskModal(task) {
               <input type="number" class="form-control" id="task-amount" value="${task ? task.amount : ''}" placeholder="0" min="0" />
             </div>
             <div class="form-group">
-              <label>Payment Status</label>
-              <select class="form-control" id="task-payment">
-                <option value="Unpaid" ${task && task.paymentStatus === 'Unpaid' ? 'selected' : ''}>Unpaid</option>
-                <option value="Pending" ${task && task.paymentStatus === 'Pending' ? 'selected' : ''}>Pending</option>
-                <option value="Paid" ${task && task.paymentStatus === 'Paid' ? 'selected' : ''}>Paid</option>
+              <label>Editable File Shared</label>
+              <select class="form-control" id="task-editable">
+                <option value="No" ${task && task.editableFileShared === 'No' ? 'selected' : ''}>No</option>
+                <option value="Yes" ${task && task.editableFileShared === 'Yes' ? 'selected' : ''}>Yes</option>
               </select>
             </div>
           </div>
           <div class="form-row">
             <div class="form-group">
               <label>Due Date</label>
-              <input type="date" class="form-control" id="task-due-date" value="${task && task.dueDate ? task.dueDate : ''}" />
+              <input type="date" class="form-control" id="task-due-date" value="${task && task.dueDate ? task.dueDate.split('T')[0] : ''}" />
             </div>
             <div class="form-group">
-              <label>Editable File Shared</label>
-              <select class="form-control" id="task-editable">
-                <option value="No" ${task && task.editableFileShared === 'No' ? 'selected' : ''}>No</option>
-                <option value="Yes" ${task && task.editableFileShared === 'Yes' ? 'selected' : ''}>Yes</option>
-              </select>
+              <label>Due Time</label>
+              <input type="time" class="form-control" id="task-due-time" value="${task && task.dueDate && task.dueDate.includes('T') ? task.dueDate.split('T')[1]?.substring(0, 5) : ''}" />
             </div>
           </div>
           <div class="form-group">
@@ -746,7 +742,7 @@ async function showTaskModal(task) {
             <div class="upload-zone" id="upload-zone">
               <div class="upload-icon">${icons.file}</div>
               <div class="upload-text">Drag & drop or click to upload</div>
-              <input type="file" id="creative-input" accept="image/*" style="display:none;" />
+              <input type="file" id="creative-input" accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.zip,.rar,.7z,.ai,.eps,.psd" style="display:none;" />
             </div>
             <div id="upload-preview-container">
               ${task && task.referenceCreative ? `
@@ -827,9 +823,10 @@ async function showTaskModal(task) {
         const type = overlay.querySelector('#task-type').value;
         const assignedTo = overlay.querySelector('#task-assigned').value;
         const amount = overlay.querySelector('#task-amount').value;
-        const paymentStatus = overlay.querySelector('#task-payment').value;
         const editableFileShared = overlay.querySelector('#task-editable').value;
-        const dueDate = overlay.querySelector('#task-due-date').value || null;
+        const dueDateVal = overlay.querySelector('#task-due-date').value;
+        const dueTimeVal = overlay.querySelector('#task-due-time').value;
+        const dueDate = dueDateVal ? (dueTimeVal ? `${dueDateVal}T${dueTimeVal}` : dueDateVal) : null;
         const description = overlay.querySelector('#task-description').value.trim();
         const sourceLink = overlay.querySelector('#task-source-link').value.trim();
 
@@ -841,7 +838,7 @@ async function showTaskModal(task) {
         if (isEdit) {
             await updateTask(task.id, {
                 date, client, type, assignedTo: assignedTo || null,
-                amount: parseFloat(amount) || 0, paymentStatus, editableFileShared,
+                amount: parseFloat(amount) || 0, editableFileShared,
                 referenceCreative: creativeData, month: new Date(date).getMonth(),
                 dueDate, description, sourceLink,
             });
@@ -849,7 +846,7 @@ async function showTaskModal(task) {
         } else {
             await addTask({
                 date, client, type, assignedTo: assignedTo || null,
-                amount: parseFloat(amount) || 0, paymentStatus, editableFileShared,
+                amount: parseFloat(amount) || 0, editableFileShared,
                 referenceCreative: creativeData, assignedBy: user.id,
                 dueDate, description, sourceLink,
             });

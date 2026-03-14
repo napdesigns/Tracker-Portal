@@ -89,7 +89,7 @@ async function renderAnalytics() {
                 <th>Tasks</th>
                 <th>Approved</th>
                 <th>Iterations</th>
-                <th>Revenue</th>
+                <th>Payment</th>
               </tr>
             </thead>
             <tbody>
@@ -112,7 +112,7 @@ async function renderAnalytics() {
     // Overdue tasks
     const today = new Date().toISOString().split('T')[0];
     const overdueTasks = allTasks.filter(t =>
-        t.dueDate && t.dueDate < today &&
+        t.dueDate && t.dueDate.split('T')[0] < today &&
         !['approved', 'rejected'].includes(t.status)
     );
 
@@ -203,7 +203,7 @@ async function renderAnalytics() {
         <div class="stat-card teal">
           <div class="stat-icon">${icons.dollarSign}</div>
           <div class="stat-value">₹${allTasks.reduce((s, t) => s + (parseFloat(t.amount) || 0), 0).toLocaleString('en-IN')}</div>
-          <div class="stat-label">Total Revenue</div>
+          <div class="stat-label">Total Payment</div>
         </div>
         <div class="stat-card red">
           <div class="stat-icon">${icons.alertTriangle}</div>
@@ -220,9 +220,9 @@ async function renderAnalytics() {
           <div class="chart-bar-container">${monthlyChartHTML}</div>
         </div>
 
-        <!-- Monthly Revenue -->
+        <!-- Monthly Payment -->
         <div class="analytics-card">
-          <h3>Monthly Revenue (${currentYear})</h3>
+          <h3>Monthly Payment (${currentYear})</h3>
           <div class="chart-bar-container">${revenueChartHTML}</div>
         </div>
 

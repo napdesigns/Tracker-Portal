@@ -154,6 +154,9 @@ async function renderChat() {
         <div class="chat-main">
           <div class="chat-main-header">
             <span class="chat-main-header-title">${activeConversationId === 'team' ? icons.users : icons.chat} ${sanitize(activeLabel)}</span>
+            <div class="chat-search-bar">
+              <input type="text" class="chat-input chat-search-input" id="chat-msg-search" placeholder="Search messages..." oninput="searchChatMessages(this.value)" />
+            </div>
           </div>
           <div class="chat-messages" id="chat-messages">
             ${messagesHTML}
@@ -233,6 +236,31 @@ window.filterConversations = function (query) {
     items.forEach(item => {
         const name = item.querySelector('.chat-convo-name')?.textContent.toLowerCase() || '';
         item.style.display = name.includes(q) ? '' : 'none';
+    });
+};
+
+window.searchChatMessages = function (query) {
+    const messages = document.querySelectorAll('#chat-messages .chat-message');
+    const q = query.toLowerCase();
+    if (!q) {
+        messages.forEach(msg => {
+            msg.style.display = '';
+            const textEl = msg.querySelector('.chat-text');
+            if (textEl) textEl.innerHTML = textEl.textContent;
+        });
+        return;
+    }
+    messages.forEach(msg => {
+        const textEl = msg.querySelector('.chat-text');
+        if (!textEl) return;
+        const text = textEl.textContent;
+        if (text.toLowerCase().includes(q)) {
+            msg.style.display = '';
+            const regex = new RegExp(`(${q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+            textEl.innerHTML = sanitize(text).replace(regex, '<mark>$1</mark>');
+        } else {
+            msg.style.display = 'none';
+        }
     });
 };
 
