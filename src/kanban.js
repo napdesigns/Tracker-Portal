@@ -78,6 +78,7 @@ async function renderKanban() {
               <div class="kanban-card-client">${sanitizeHTML(t.client) || '—'}</div>
               <div class="kanban-card-meta">
                 <span class="badge badge-${(t.type || 'static').toLowerCase() === 'static' ? 'assigned' : 'in_progress'}" style="font-size: 0.68rem; padding: 2px 8px;">${sanitizeHTML(t.type)}</span>
+                <span class="badge priority-${(t.priority || 'medium')}" style="font-size: 0.65rem; padding: 1px 6px;">${(t.priority || 'medium').charAt(0).toUpperCase() + (t.priority || 'medium').slice(1)}</span>
                 <span style="font-size: 0.75rem; color: var(--text-muted);">₹${(parseFloat(t.amount) || 0).toLocaleString('en-IN')}</span>
               </div>
               ${t.dueDate ? `<div class="kanban-card-due ${isOverdue ? 'overdue-text' : ''}">Due: ${formatDate(t.dueDate)}</div>` : ''}

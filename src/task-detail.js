@@ -316,6 +316,8 @@ async function renderTaskDetail(taskId) {
 
       ${await renderCommentsSection(taskId, currentUser)}
 
+      ${renderChecklistSection(taskId)}
+
       ${task.completedCreative ? `
       <div class="task-detail-section">
         <h3>${icons.share} Share Creative</h3>
@@ -377,8 +379,11 @@ async function renderCommentsSection(taskId, currentUser) {
       <div class="comments-list">
         ${commentsHTML}
       </div>
-      <div class="comment-input-bar" style="margin-top: 16px;">
-        <textarea class="form-control" id="comment-input" rows="2" placeholder="Write a comment..."></textarea>
+      <div class="comment-input-bar" style="margin-top: 16px; position: relative;">
+        <div style="position: relative;">
+          <textarea class="form-control" id="comment-input" rows="2" placeholder="Write a comment... (use @ to mention)" oninput="onCommentInput(this)"></textarea>
+          <div id="mention-dropdown" class="mention-dropdown" style="display:none;"></div>
+        </div>
         <button class="btn btn-primary btn-sm" style="margin-top: 8px;" onclick="postComment('${taskId}')" id="post-comment-btn">
           ${icons.send} Post Comment
         </button>
@@ -528,6 +533,141 @@ window.rateTask = async function (taskId, rating) {
     } catch (err) {
         showToast(err.message, 'error');
     }
+};
+
+// ==========================================
+// @Mentions in Comments
+// ==========================================
+
+window.onCommentInput = async function (el) {
+    const val = el.value;
+    const cursorPos = el.selectionStart;
+    const textBeforeCursor = val.substring(0, cursorPos);
+    const atMatch = textBeforeCursor.match(/@(\w*)$/);
+
+    const dropdown = document.getElementById('mention-dropdown');
+    if (!dropdown) return;
+
+    if (atMatch) {
+        const query = atMatch[1].toLowerCase();
+        const { getUsers } = await import('./store-async.js');
+        const users = await getUsers();
+        const filtered = users.filter(u => u.name.toLowerCase().includes(query)).slice(0, 5);
+
+        if (filtered.length > 0) {
+            dropdown.innerHTML = filtered.map(u =>
+                `<div class="mention-item" onclick="insertMention('${u.name.replace(/'/g, "\\'")}')">
+                    <strong>${u.name}</strong>
+                    <span style="color:var(--text-muted);font-size:0.75rem;">${u.role}</span>
+                </div>`
+            ).join('');
+            dropdown.style.display = 'block';
+        } else {
+            dropdown.style.display = 'none';
+        }
+    } else {
+        dropdown.style.display = 'none';
+    }
+};
+
+window.insertMention = function (name) {
+    const input = document.getElementById('comment-input');
+    if (!input) return;
+    const val = input.value;
+    const cursorPos = input.selectionStart;
+    const textBefore = val.substring(0, cursorPos);
+    const textAfter = val.substring(cursorPos);
+    const newBefore = textBefore.replace(/@\w*$/, `@${name} `);
+    input.value = newBefore + textAfter;
+    input.focus();
+    document.getElementById('mention-dropdown').style.display = 'none';
+};
+
+// ==========================================
+// Subtasks / Checklist
+// ==========================================
+
+function getSubtasks(taskId) {
+    const all = JSON.parse(localStorage.getItem('crm_subtasks') || '[]');
+    return all.filter(s => s.taskId === taskId);
+}
+
+function addSubtaskToStore(taskId, text) {
+    const all = JSON.parse(localStorage.getItem('crm_subtasks') || '[]');
+    all.push({ id: crypto.randomUUID(), taskId, text, completed: false });
+    localStorage.setItem('crm_subtasks', JSON.stringify(all));
+}
+
+function toggleSubtaskInStore(subtaskId) {
+    const all = JSON.parse(localStorage.getItem('crm_subtasks') || '[]');
+    const st = all.find(s => s.id === subtaskId);
+    if (st) st.completed = !st.completed;
+    localStorage.setItem('crm_subtasks', JSON.stringify(all));
+}
+
+function deleteSubtaskFromStore(subtaskId) {
+    let all = JSON.parse(localStorage.getItem('crm_subtasks') || '[]');
+    all = all.filter(s => s.id !== subtaskId);
+    localStorage.setItem('crm_subtasks', JSON.stringify(all));
+}
+
+function renderChecklistSection(taskId) {
+    const subtasks = getSubtasks(taskId);
+    const total = subtasks.length;
+    const completed = subtasks.filter(s => s.completed).length;
+    const pct = total > 0 ? Math.round((completed / total) * 100) : 0;
+
+    const subtaskListHTML = subtasks.length === 0
+        ? `<p style="color: var(--text-muted); font-size: 0.85rem;">No checklist items yet.</p>`
+        : subtasks.map(s => `
+            <div class="subtask-item ${s.completed ? 'completed' : ''}">
+              <input type="checkbox" ${s.completed ? 'checked' : ''} onchange="toggleSubtask('${s.id}', '${taskId}')" />
+              <span class="subtask-text">${sanitizeHTML(s.text)}</span>
+              <span class="subtask-delete" onclick="deleteSubtask('${s.id}', '${taskId}')">${icons.trash}</span>
+            </div>
+          `).join('');
+
+    return `
+    <div class="task-detail-section">
+      <h3>${icons.tasks} Checklist ${total > 0 ? `(${completed}/${total})` : ''}</h3>
+      ${total > 0 ? `
+        <div class="subtask-progress">
+          <div class="subtask-progress-fill" style="width: ${pct}%;"></div>
+        </div>
+      ` : ''}
+      <div class="subtask-list">
+        ${subtaskListHTML}
+      </div>
+      <div class="subtask-add">
+        <input type="text" id="subtask-input" placeholder="Add checklist item..." onkeydown="if(event.key==='Enter'){addSubtask('${taskId}');}" />
+        <button class="btn btn-primary btn-sm" onclick="addSubtask('${taskId}')">${icons.plus} Add</button>
+      </div>
+    </div>
+  `;
+}
+
+window.addSubtask = function (taskId) {
+    const input = document.getElementById('subtask-input');
+    if (!input) return;
+    const text = input.value.trim();
+    if (!text) {
+        showToast('Please enter a checklist item', 'error');
+        return;
+    }
+    addSubtaskToStore(taskId, text);
+    showToast('Checklist item added', 'success');
+    window.renderApp();
+};
+
+window.toggleSubtask = function (subtaskId, taskId) {
+    toggleSubtaskInStore(subtaskId);
+    window.renderApp();
+};
+
+window.deleteSubtask = function (subtaskId, taskId) {
+    deleteSubtaskFromStore(subtaskId);
+    showToast('Checklist item removed', 'info');
+    window.renderApp();
 };
 
 export { renderTaskDetail };

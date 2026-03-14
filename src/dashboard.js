@@ -4,7 +4,7 @@
 
 import {
     getCurrentUser, isAdmin, getTasks, getTasksByFreelancer,
-    getStats, MONTHS,
+    getStats, MONTHS, getFreelancers, sanitizeHTML,
 } from './store-async.js';
 import icons from './icons.js';
 
@@ -81,6 +81,40 @@ async function renderDashboard() {
     `;
     }
 
+    // Top performers (admin only)
+    let topPerformersHTML = '';
+    if (adminUser) {
+        const freelancers = await getFreelancers();
+        const performers = freelancers.map(f => {
+            const fTasks = tasks.filter(t => t.assignedTo === f.id);
+            const approved = fTasks.filter(t => t.status === 'approved').length;
+            return { name: f.name, tasks: fTasks.length, approved, points: f.points || 0, badge: f.badge };
+        }).sort((a, b) => b.points - a.points).slice(0, 5);
+
+        if (performers.length > 0) {
+            const badgeIcon = (badge) => {
+                if (!badge) return '';
+                const color = badge === 'Platinum' ? '#7c3aed' : badge === 'Gold' ? '#d97706' : '#6b7280';
+                return `<span class="badge" style="background:${color};color:#fff;font-size:0.68rem;padding:2px 6px;">${badge}</span>`;
+            };
+            topPerformersHTML = `
+            <div class="dashboard-section">
+              <h3>${icons.award} Top Performers</h3>
+              <div class="leaderboard">
+                ${performers.map((p, i) => `
+                  <div class="leaderboard-item">
+                    <span class="leaderboard-rank">#${i + 1}</span>
+                    <span class="leaderboard-name">${sanitizeHTML(p.name)}</span>
+                    ${badgeIcon(p.badge)}
+                    <span class="leaderboard-stat">${p.points} pts</span>
+                    <span class="leaderboard-stat muted">${p.approved}/${p.tasks} tasks</span>
+                  </div>
+                `).join('')}
+              </div>
+            </div>`;
+        }
+    }
+
     // Recent tasks
     const recentTasks = tasks.slice(-5).reverse();
     let recentHTML = '';
@@ -126,6 +160,7 @@ async function renderDashboard() {
     <div class="page-body">
       <div class="stat-cards">${cardsHTML}</div>
       ${recentHTML}
+      ${topPerformersHTML}
     </div>
   `;
 }

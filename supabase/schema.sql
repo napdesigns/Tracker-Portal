@@ -47,6 +47,7 @@ CREATE TABLE IF NOT EXISTS tasks (
     due_date TIMESTAMPTZ,
     description TEXT DEFAULT '',
     rating INTEGER DEFAULT NULL CHECK (rating IS NULL OR (rating >= 1 AND rating <= 5)),
+    priority TEXT NOT NULL DEFAULT 'medium' CHECK (priority IN ('low', 'medium', 'high', 'urgent')),
     source_link TEXT DEFAULT '',
     month INTEGER GENERATED ALWAYS AS (EXTRACT(MONTH FROM date)::INTEGER - 1) STORED,
     created_at TIMESTAMPTZ DEFAULT NOW(),

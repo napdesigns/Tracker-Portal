@@ -14,6 +14,69 @@ import { showToast } from './toast.js';
 import { validateImageFile } from './validation.js';
 import icons from './icons.js';
 
+function capitalize(str) {
+    return str ? str.charAt(0).toUpperCase() + str.slice(1) : '';
+}
+
+// ==========================================
+// Task Templates
+// ==========================================
+
+const TASK_TEMPLATES = [
+    { name: 'Logo Design', type: 'Logo', amount: 5000, description: 'Design a logo with 3 concept options' },
+    { name: 'Social Media Post', type: 'Static', amount: 500, description: 'Single social media post design' },
+    { name: 'Video Edit', type: 'Video', amount: 3000, description: 'Edit and produce a video' },
+    { name: 'Branding Package', type: 'Branding', amount: 15000, description: 'Complete branding package' },
+    { name: 'Carousel Design', type: 'Carousel', amount: 1500, description: 'Multi-slide carousel for social media' },
+    { name: 'Reels/Short Video', type: 'Reels', amount: 2000, description: 'Short-form video content' },
+];
+
+window.showTemplateModal = function () {
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    overlay.innerHTML = `
+    <div class="modal" style="max-width: 700px;">
+      <div class="modal-header">
+        <h2>${icons.file} Task Templates</h2>
+        <button class="btn-icon" onclick="this.closest('.modal-overlay').remove()">&#x2715;</button>
+      </div>
+      <div class="modal-body">
+        <p style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 8px;">Choose a template to pre-fill a new task.</p>
+        <div class="template-grid">
+          ${TASK_TEMPLATES.map((t, i) => `
+            <div class="template-card" onclick="useTemplate(${i})">
+              <h4>${sanitizeHTML(t.name)}</h4>
+              <div class="template-meta">Type: ${sanitizeHTML(t.type)}</div>
+              <div class="template-meta">Amount: \u20B9${t.amount.toLocaleString('en-IN')}</div>
+              <div class="template-meta" style="margin-top:6px; font-style:italic;">${sanitizeHTML(t.description)}</div>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    </div>
+  `;
+    document.body.appendChild(overlay);
+};
+
+window.useTemplate = async function (index) {
+    const template = TASK_TEMPLATES[index];
+    if (!template) return;
+    // Close template modal
+    const existing = document.querySelector('.modal-overlay');
+    if (existing) existing.remove();
+    // Open the add-task modal, then pre-fill template values after it renders
+    await showTaskModal(null);
+    // Now pre-fill the fields from the template
+    setTimeout(() => {
+        const typeEl = document.getElementById('task-type');
+        const amountEl = document.getElementById('task-amount');
+        const descEl = document.getElementById('task-description');
+        if (typeEl) typeEl.value = template.type;
+        if (amountEl) amountEl.value = template.amount;
+        if (descEl) descEl.value = template.description;
+    }, 50);
+};
+
 // ==========================================
 // Filtering Helper
 // ==========================================
@@ -167,6 +230,7 @@ async function renderTable() {
       <div class="bulk-action-bar">
         <span>${selectedIds.length} task${selectedIds.length > 1 ? 's' : ''} selected</span>
         <button class="btn btn-sm btn-primary" onclick="handleBulkApprove()">Approve Selected</button>
+        <button class="btn btn-sm btn-secondary" onclick="showBulkEditModal()" style="background: var(--accent-primary); color: #fff; border: none;">Bulk Edit</button>
         <button class="btn btn-sm btn-danger" onclick="handleBulkDelete()">Delete Selected</button>
         <button class="btn btn-sm btn-secondary" onclick="handleBulkClear()">Clear</button>
       </div>
@@ -178,7 +242,7 @@ async function renderTable() {
     if (tasks.length === 0) {
         tableBody = `
       <tr>
-        <td colspan="${adminUser ? '15' : '14'}">
+        <td colspan="${adminUser ? '16' : '15'}">
           <div class="empty-state">
             <div class="empty-icon">${icons.inbox}</div>
             <div class="empty-title">No tasks found</div>
@@ -257,6 +321,7 @@ async function renderTable() {
           <td>${creativeCol}</td>
           <td>${sanitizeHTML(t.editableFileShared)}</td>
           <td><span class="badge badge-${t.status}">${formatStatusLabel(t.status)}</span></td>
+          <td><span class="badge priority-${t.priority || 'medium'}">${capitalize(t.priority || 'medium')}</span></td>
           <td>₹${(parseFloat(t.amount) || 0).toLocaleString('en-IN')}</td>
           <td><span class="badge badge-${(t.paymentStatus || 'unpaid').toLowerCase()}">${sanitizeHTML(t.paymentStatus) || 'Unpaid'}</span></td>
           <td class="${t.dueDate && t.dueDate.split('T')[0] < new Date().toISOString().split('T')[0] && !['approved', 'rejected'].includes(t.status) ? 'overdue-cell' : ''}">${t.dueDate ? (t.dueDate.includes('T') ? formatDateTime(t.dueDate) : formatDate(t.dueDate)) : '—'}</td>
@@ -291,6 +356,7 @@ async function renderTable() {
       <h1>Tasks</h1>
       <div style="display: flex; gap: 8px;">
         ${adminUser ? `<button class="btn btn-secondary btn-sm" onclick="exportCSV()">${icons.download} Export CSV</button>` : ''}
+        ${adminUser ? `<button class="btn btn-secondary btn-sm" onclick="showTemplateModal()">${icons.file} Templates</button>` : ''}
         ${adminUser ? `<button class="btn btn-primary" onclick="openAddTaskModal()" id="add-task-btn">${icons.plus} Add Task</button>` : ''}
       </div>
     </div>
@@ -339,6 +405,24 @@ async function renderTable() {
               </select>
             ` : ''}
           </div>
+          <div class="saved-views-wrap">
+            <button class="btn btn-sm btn-secondary" onclick="saveFilterView()" style="font-size: 0.78rem; padding: 5px 10px;">Save View</button>
+            <div class="saved-views-dropdown">
+              <button class="btn btn-sm btn-secondary" onclick="toggleSavedViewsList()" style="font-size: 0.78rem; padding: 5px 10px;">Saved Views ▾</button>
+              <div class="saved-views-list" id="saved-views-list" style="display:none;">
+                ${(() => {
+                  const views = JSON.parse(localStorage.getItem('crm_saved_views') || '[]');
+                  if (views.length === 0) return '<div style="padding: 10px 12px; font-size: 0.82rem; color: var(--text-muted);">No saved views</div>';
+                  return views.map(v => `
+                    <div class="saved-view-item">
+                      <span onclick="loadFilterView('${v.id}')" style="flex:1; cursor:pointer;">${sanitizeHTML(v.name)}</span>
+                      <span class="saved-view-delete" onclick="event.stopPropagation(); deleteFilterView('${v.id}')" title="Delete view">&times;</span>
+                    </div>
+                  `).join('');
+                })()}
+              </div>
+            </div>
+          </div>
           <div class="date-range-filter">
             <label style="font-size: 0.8rem; color: var(--text-muted); white-space: nowrap;">From:</label>
             <input type="date" class="form-control" style="padding: 6px 10px; font-size: 0.82rem; width: auto;" value="${window.appState.dateFrom || ''}" onchange="handleDateFrom(this.value)" id="date-from" />
@@ -359,6 +443,7 @@ async function renderTable() {
                 <th>Creative</th>
                 <th>Editable File</th>
                 ${sortableHeader('Status', 'status')}
+                <th>Priority</th>
                 ${sortableHeader('Amount', 'amount')}
                 ${sortableHeader('Payment', 'payment')}
                 ${sortableHeader('Due Date', 'dueDate')}
@@ -711,6 +796,17 @@ async function showTaskModal(task) {
           </div>
           <div class="form-row">
             <div class="form-group">
+              <label>Priority</label>
+              <select class="form-control" id="task-priority">
+                <option value="low" ${task && task.priority === 'low' ? 'selected' : ''}>Low</option>
+                <option value="medium" ${!task || !task.priority || task.priority === 'medium' ? 'selected' : ''}>Medium</option>
+                <option value="high" ${task && task.priority === 'high' ? 'selected' : ''}>High</option>
+                <option value="urgent" ${task && task.priority === 'urgent' ? 'selected' : ''}>Urgent</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
               <label>Due Date</label>
               <input type="date" class="form-control" id="task-due-date" value="${task && task.dueDate ? task.dueDate.split('T')[0] : ''}" />
             </div>
@@ -834,6 +930,7 @@ async function showTaskModal(task) {
         const dueDate = dueDateVal ? (dueTimeVal ? `${dueDateVal}T${dueTimeVal}` : dueDateVal) : null;
         const description = overlay.querySelector('#task-description').value.trim();
         const sourceLink = overlay.querySelector('#task-source-link').value.trim();
+        const priority = overlay.querySelector('#task-priority').value;
 
         if (!client) {
             showToast('Please enter a client name', 'error');
@@ -845,7 +942,7 @@ async function showTaskModal(task) {
                 date, client, type, assignedTo: assignedTo || null,
                 amount: parseFloat(amount) || 0, editableFileShared,
                 referenceCreative: creativeData, month: new Date(date).getMonth(),
-                dueDate, description, sourceLink,
+                dueDate, description, sourceLink, priority,
             });
             showToast('Task updated!', 'success');
         } else {
@@ -853,7 +950,7 @@ async function showTaskModal(task) {
                 date, client, type, assignedTo: assignedTo || null,
                 amount: parseFloat(amount) || 0, editableFileShared,
                 referenceCreative: creativeData, assignedBy: user.id,
-                dueDate, description, sourceLink,
+                dueDate, description, sourceLink, priority,
             });
             showToast('Task created!', 'success');
         }
@@ -1176,6 +1273,147 @@ window.openRejectModal = function (taskId) {
         closeModal();
         await window.renderApp();
     };
+};
+
+// ==========================================
+// Bulk Edit Modal
+// ==========================================
+
+window.showBulkEditModal = async function () {
+    const ids = window.appState.selectedTaskIds || [];
+    if (ids.length === 0) {
+        showToast('No tasks selected', 'error');
+        return;
+    }
+
+    const freelancers = await getFreelancers();
+
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    overlay.innerHTML = `
+    <div class="modal">
+      <div class="modal-header">
+        <h2>Bulk Edit (${ids.length} task${ids.length > 1 ? 's' : ''})</h2>
+        <button class="btn-icon" id="bulk-edit-close">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="bulk-edit-form">
+          <div class="form-group">
+            <label>Status</label>
+            <select class="form-control" id="bulk-status">
+              <option value="">— Keep Current —</option>
+              <option value="assigned">Assigned</option>
+              <option value="in_progress">In Progress</option>
+              <option value="submitted">Submitted</option>
+              <option value="approved">Approved</option>
+              <option value="iteration">Iteration</option>
+              <option value="rejected">Rejected</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Payment Status</label>
+            <select class="form-control" id="bulk-payment">
+              <option value="">— Keep Current —</option>
+              <option value="Unpaid">Unpaid</option>
+              <option value="Pending">Pending</option>
+              <option value="Paid">Paid</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Assign To</label>
+            <select class="form-control" id="bulk-assignee">
+              <option value="">— Keep Current —</option>
+              ${freelancers.map(f => `<option value="${f.id}">${sanitizeHTML(f.name)}</option>`).join('')}
+            </select>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" id="bulk-edit-cancel">Cancel</button>
+        <button class="btn btn-primary" id="bulk-edit-save">Save Changes</button>
+      </div>
+    </div>
+  `;
+
+    document.body.appendChild(overlay);
+
+    const closeModal = () => overlay.remove();
+    overlay.querySelector('#bulk-edit-close').onclick = closeModal;
+    overlay.querySelector('#bulk-edit-cancel').onclick = closeModal;
+
+    overlay.querySelector('#bulk-edit-save').onclick = async () => {
+        const status = overlay.querySelector('#bulk-status').value;
+        const paymentStatus = overlay.querySelector('#bulk-payment').value;
+        const assignedTo = overlay.querySelector('#bulk-assignee').value;
+
+        if (!status && !paymentStatus && !assignedTo) {
+            showToast('No changes selected', 'error');
+            return;
+        }
+
+        const changes = {};
+        if (status) changes.status = status;
+        if (paymentStatus) changes.paymentStatus = paymentStatus;
+        if (assignedTo) changes.assignedTo = assignedTo;
+
+        let count = 0;
+        for (const id of ids) {
+            await updateTask(id, changes);
+            count++;
+        }
+        window.appState.selectedTaskIds = [];
+        showToast(`${count} task${count !== 1 ? 's' : ''} updated`, 'success');
+        closeModal();
+        await window.renderApp();
+    };
+};
+
+// ==========================================
+// Saved Filter Views
+// ==========================================
+
+window.saveFilterView = function () {
+    const name = prompt('Enter a name for this filter view:');
+    if (!name) return;
+    const views = JSON.parse(localStorage.getItem('crm_saved_views') || '[]');
+    views.push({
+        id: crypto.randomUUID(),
+        name,
+        statusFilter: window.appState.statusFilter,
+        paymentFilter: window.appState.paymentFilter,
+        typeFilter: window.appState.typeFilter,
+        freelancerFilter: window.appState.freelancerFilter,
+        dateFrom: window.appState.dateFrom,
+        dateTo: window.appState.dateTo,
+    });
+    localStorage.setItem('crm_saved_views', JSON.stringify(views));
+    window.renderApp();
+};
+
+window.loadFilterView = function (viewId) {
+    const views = JSON.parse(localStorage.getItem('crm_saved_views') || '[]');
+    const view = views.find(v => v.id === viewId);
+    if (!view) return;
+    window.appState.statusFilter = view.statusFilter || 'all';
+    window.appState.paymentFilter = view.paymentFilter || 'all';
+    window.appState.typeFilter = view.typeFilter || 'all';
+    window.appState.freelancerFilter = view.freelancerFilter || 'all';
+    window.appState.dateFrom = view.dateFrom || '';
+    window.appState.dateTo = view.dateTo || '';
+    window.renderApp();
+};
+
+window.deleteFilterView = function (viewId) {
+    let views = JSON.parse(localStorage.getItem('crm_saved_views') || '[]');
+    views = views.filter(v => v.id !== viewId);
+    localStorage.setItem('crm_saved_views', JSON.stringify(views));
+    window.renderApp();
+};
+
+window.toggleSavedViewsList = function () {
+    const list = document.getElementById('saved-views-list');
+    if (!list) return;
+    list.style.display = list.style.display === 'none' ? 'block' : 'none';
 };
 
 export { renderTable };

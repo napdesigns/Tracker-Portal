@@ -15,9 +15,16 @@ import { renderTaskDetail } from './task-detail.js';
 import { renderUsers } from './users.js';
 import { renderAnalytics } from './analytics.js';
 import { renderKanban, initKanbanDragDrop } from './kanban.js';
+import { renderCalendar } from './calendar.js';
 import { renderActivityLog } from './activity-log.js';
 import { renderPayments } from './payments.js';
 import { renderChat, renderChatBubble } from './chat.js';
+import { renderProfile } from './profile.js';
+import { renderClients } from './clients.js';
+import { renderWorkload } from './workload.js';
+import { renderTimeTracking } from './timetracking.js';
+import { renderGantt } from './gantt.js';
+import { renderInvoice } from './invoice.js';
 import { showToast } from './toast.js';
 import { renderNotificationBell } from './notifications.js';
 import icons from './icons.js';
@@ -71,15 +78,26 @@ async function renderAppShell(content) {
     { id: 'dashboard', icon: icons.dashboard, label: 'Dashboard' },
     { id: 'tasks', icon: icons.tasks, label: 'Tasks' },
     { id: 'kanban', icon: icons.kanban, label: 'Kanban' },
+    { id: 'calendar', icon: icons.kanban, label: 'Calendar' },
+    { id: 'timeline', icon: icons.analytics, label: 'Timeline' },
     { id: 'analytics', icon: icons.analytics, label: 'Analytics' },
   ];
 
   navItems.push({ id: 'payments', icon: icons.dollarSign, label: 'Payments' });
   if (adminUser) {
+    navItems.push({ id: 'invoices', icon: icons.fileText, label: 'Invoices' });
+  }
+  if (adminUser) {
     navItems.push({ id: 'users', icon: icons.users, label: 'Users' });
   }
   navItems.push({ id: 'chat', icon: icons.chat, label: 'Chat' });
   navItems.push({ id: 'activity', icon: icons.activity, label: 'Activity Log' });
+  navItems.push({ id: 'clients', icon: icons.users, label: 'Clients' });
+  if (adminUser) {
+    navItems.push({ id: 'workload', icon: icons.analytics, label: 'Workload' });
+  }
+  navItems.push({ id: 'timetracking', icon: icons.clock, label: 'Time Track' });
+  navItems.push({ id: 'profile', icon: icons.users, label: 'My Profile' });
 
   const initials = user.name.split(' ').map(n => n[0]).join('').toUpperCase();
 
@@ -91,6 +109,9 @@ async function renderAppShell(content) {
           <div class="brand-icon">CT</div>
           <h2>CRM Tracker</h2>
           ${notifBellHTML}
+          <button class="btn-icon" onclick="toggleDarkMode()" title="Toggle dark mode" id="dark-mode-btn" style="margin-left:4px;">
+            ${document.documentElement.getAttribute('data-theme') === 'dark' ? icons.sun : icons.moon}
+          </button>
         </div>
         <nav class="sidebar-nav">
           ${navItems.map(item => `
@@ -104,7 +125,7 @@ async function renderAppShell(content) {
         <div class="sidebar-user">
           <div class="user-avatar">${initials}</div>
           <div class="user-info">
-            <div class="user-name">${user.name}</div>
+            <div class="user-name" style="cursor:pointer;" onclick="navigateTo('profile')">${user.name}</div>
             <div class="user-role">${user.role === 'superadmin' ? 'Super Admin' : user.role}</div>
           </div>
           <button class="logout-btn" onclick="handleLogout()" title="Logout" id="logout-btn">${icons.logout}</button>
@@ -112,6 +133,13 @@ async function renderAppShell(content) {
       </aside>
       <main class="main-content">
         <button class="hamburger-btn" onclick="toggleSidebar()" id="hamburger-btn">${icons.menu}</button>
+        <div class="global-search-bar" id="global-search-bar">
+          <div class="global-search-input-wrap">
+            ${icons.search}
+            <input type="text" class="global-search-input" id="global-search-input" placeholder="Search tasks..." oninput="handleGlobalSearch(this.value)" autocomplete="off" />
+            <div class="global-search-results" id="global-search-results" style="display:none;"></div>
+          </div>
+        </div>
         ${content}
       </main>
     </div>
@@ -139,6 +167,64 @@ function closeSidebar() {
   if (overlay) overlay.classList.remove('open');
 }
 window.closeSidebar = closeSidebar;
+
+window.toggleDarkMode = function () {
+    const html = document.documentElement;
+    const isDark = html.getAttribute('data-theme') === 'dark';
+    html.setAttribute('data-theme', isDark ? 'light' : 'dark');
+    localStorage.setItem('crm_theme', isDark ? 'light' : 'dark');
+    window.renderApp();
+};
+
+// Apply saved theme on load
+(function applyTheme() {
+    const saved = localStorage.getItem('crm_theme');
+    if (saved === 'dark') {
+        document.documentElement.setAttribute('data-theme', 'dark');
+    }
+})();
+
+window.handleGlobalSearch = async function (query) {
+    const results = document.getElementById('global-search-results');
+    if (!results) return;
+    if (!query || query.length < 2) {
+        results.style.display = 'none';
+        return;
+    }
+    const q = query.toLowerCase();
+    const { getTasks, getTasksByFreelancer, isAdmin: checkAdmin, getCurrentUser: getUser } = await import('./store-async.js');
+    const admin = await checkAdmin();
+    const user = await getUser();
+    const tasks = admin ? await getTasks() : await getTasksByFreelancer(user.id);
+    const matches = tasks.filter(t =>
+        (t.client || '').toLowerCase().includes(q) ||
+        (t.type || '').toLowerCase().includes(q) ||
+        String(t.slNo).includes(q) ||
+        (t.status || '').toLowerCase().includes(q)
+    ).slice(0, 8);
+
+    if (matches.length === 0) {
+        results.innerHTML = '<div class="search-no-results">No tasks found</div>';
+    } else {
+        results.innerHTML = matches.map(t => `
+            <div class="search-result-item" onclick="navigateTo('task-detail', { selectedTaskId: '${t.id}' })">
+                <span class="search-result-id">#${t.slNo}</span>
+                <span class="search-result-client">${t.client || '—'}</span>
+                <span class="badge badge-${t.status}" style="font-size:0.7rem;padding:2px 6px;">${t.status}</span>
+            </div>
+        `).join('');
+    }
+    results.style.display = '';
+};
+
+// Close search results when clicking outside
+document.addEventListener('click', (e) => {
+    const results = document.getElementById('global-search-results');
+    const wrap = document.getElementById('global-search-bar');
+    if (results && wrap && !wrap.contains(e.target)) {
+        results.style.display = 'none';
+    }
+});
 
 // ==========================================
 // Main Render
@@ -179,14 +265,35 @@ async function renderApp() {
       case 'kanban':
         pageContent = await renderKanban();
         break;
+      case 'calendar':
+        pageContent = await renderCalendar();
+        break;
+      case 'timeline':
+        pageContent = await renderGantt();
+        break;
       case 'payments':
         pageContent = await renderPayments();
+        break;
+      case 'invoices':
+        pageContent = (await isAdmin()) ? await renderInvoice() : await renderDashboard();
         break;
       case 'chat':
         pageContent = await renderChat();
         break;
       case 'activity':
         pageContent = await renderActivityLog();
+        break;
+      case 'clients':
+        pageContent = await renderClients();
+        break;
+      case 'workload':
+        pageContent = (await isAdmin()) ? await renderWorkload() : await renderDashboard();
+        break;
+      case 'timetracking':
+        pageContent = await renderTimeTracking();
+        break;
+      case 'profile':
+        pageContent = await renderProfile();
         break;
       case 'task-detail':
         pageContent = await renderTaskDetail(window.appState.selectedTaskId);
