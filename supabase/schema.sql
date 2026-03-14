@@ -381,3 +381,48 @@ CREATE POLICY "Authenticated users can send chat messages"
     ON chat_messages FOR INSERT
     TO authenticated
     WITH CHECK (user_id = auth.uid());
+
+-- ==========================================
+-- Payment Transactions
+-- ==========================================
+
+CREATE TABLE IF NOT EXISTS payment_transactions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    freelancer_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+    freelancer_name TEXT NOT NULL DEFAULT '',
+    paid_by UUID REFERENCES profiles(id) ON DELETE SET NULL,
+    paid_by_name TEXT NOT NULL DEFAULT '',
+    amount NUMERIC(10,2) NOT NULL DEFAULT 0,
+    currency TEXT NOT NULL DEFAULT 'INR',
+    razorpay_payment_id TEXT DEFAULT NULL,
+    razorpay_order_id TEXT DEFAULT NULL,
+    status TEXT NOT NULL DEFAULT 'success' CHECK (status IN ('success', 'failed', 'pending')),
+    task_ids TEXT[] DEFAULT '{}',
+    notes TEXT DEFAULT '',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_payment_transactions_freelancer ON payment_transactions(freelancer_id);
+CREATE INDEX IF NOT EXISTS idx_payment_transactions_created_at ON payment_transactions(created_at DESC);
+
+ALTER TABLE payment_transactions ENABLE ROW LEVEL SECURITY;
+
+-- Admins can view all transactions, freelancers can view their own
+CREATE POLICY "Admins can view all payment transactions"
+    ON payment_transactions FOR SELECT
+    TO authenticated
+    USING (
+        EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('admin', 'superadmin'))
+    );
+
+CREATE POLICY "Freelancers can view own transactions"
+    ON payment_transactions FOR SELECT
+    TO authenticated
+    USING (freelancer_id = auth.uid());
+
+CREATE POLICY "Admins can insert payment transactions"
+    ON payment_transactions FOR INSERT
+    TO authenticated
+    WITH CHECK (
+        EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('admin', 'superadmin'))
+    );

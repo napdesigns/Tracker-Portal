@@ -1102,6 +1102,57 @@ export async function getChatConversations() {
     return buildConversationList((data || []).map(toCamelCase), user.id);
 }
 
+// ==========================================
+// Payment Transactions
+// ==========================================
+
+export async function createPaymentTransaction(data) {
+    if (!isSupabaseConfigured()) {
+        // localStorage fallback
+        const txns = JSON.parse(localStorage.getItem('crm_payment_transactions') || '[]');
+        const txn = {
+            id: crypto.randomUUID(),
+            ...data,
+            createdAt: new Date().toISOString(),
+        };
+        txns.unshift(txn);
+        localStorage.setItem('crm_payment_transactions', JSON.stringify(txns));
+        return txn;
+    }
+
+    const { data: result, error } = await supabase
+        .from('payment_transactions')
+        .insert([toSnakeCase(data)])
+        .select()
+        .single();
+
+    if (error) throw new Error(error.message);
+    return toCamelCase(result);
+}
+
+export async function getPaymentTransactions(freelancerId = null, limit = 100) {
+    if (!isSupabaseConfigured()) {
+        let txns = JSON.parse(localStorage.getItem('crm_payment_transactions') || '[]');
+        if (freelancerId) txns = txns.filter(t => t.freelancerId === freelancerId);
+        return txns.slice(0, limit);
+    }
+
+    let query = supabase
+        .from('payment_transactions')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(limit);
+
+    if (freelancerId) query = query.eq('freelancer_id', freelancerId);
+
+    const { data, error } = await query;
+    if (error) {
+        console.warn('Payment transactions table not available:', error.message);
+        return [];
+    }
+    return (data || []).map(toCamelCase);
+}
+
 export async function getActivityLog(limit = 100) {
     if (!isSupabaseConfigured()) {
         return getLocalActivityLog()
