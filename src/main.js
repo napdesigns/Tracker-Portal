@@ -77,8 +77,8 @@ async function renderAppShell(content) {
     { id: 'dashboard', icon: icons.dashboard, label: 'Dashboard' },
     { id: 'tasks', icon: icons.tasks, label: 'Tasks' },
     { id: 'kanban', icon: icons.kanban, label: 'Kanban' },
-    { id: 'calendar', icon: icons.kanban, label: 'Calendar' },
-    { id: 'timeline', icon: icons.analytics, label: 'Timeline' },
+    { id: 'calendar', icon: icons.calendar, label: 'Calendar' },
+    { id: 'timeline', icon: icons.timeline, label: 'Timeline' },
     { id: 'analytics', icon: icons.analytics, label: 'Analytics' },
   ];
 
@@ -91,7 +91,9 @@ async function renderAppShell(content) {
   }
   navItems.push({ id: 'chat', icon: icons.chat, label: 'Chat' });
   navItems.push({ id: 'activity', icon: icons.activity, label: 'Activity Log' });
-  navItems.push({ id: 'clients', icon: icons.users, label: 'Clients' });
+  if (adminUser) {
+    navItems.push({ id: 'clients', icon: icons.users, label: 'Clients' });
+  }
   if (adminUser) {
     navItems.push({ id: 'workload', icon: icons.analytics, label: 'Workload' });
   }
@@ -282,7 +284,7 @@ async function renderApp() {
         pageContent = await renderActivityLog();
         break;
       case 'clients':
-        pageContent = await renderClients();
+        pageContent = (await isAdmin()) ? await renderClients() : await renderDashboard();
         break;
       case 'workload':
         pageContent = (await isAdmin()) ? await renderWorkload() : await renderDashboard();
