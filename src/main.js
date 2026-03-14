@@ -26,6 +26,7 @@ import { renderGantt } from './gantt.js';
 import { renderInvoice } from './invoice.js';
 import { showToast } from './toast.js';
 import { renderNotificationBell } from './notifications.js';
+import { enhanceDateInputs } from './datepicker.js';
 import icons from './icons.js';
 
 // Initialize seed data & migrate
@@ -300,6 +301,9 @@ async function renderApp() {
     }
 
     app.innerHTML = await renderAppShell(pageContent);
+
+    // Enhance native date inputs with custom date picker
+    setTimeout(() => enhanceDateInputs(), 0);
 
     // Setup realtime notifications (non-blocking)
     setupRealtimeNotifications().catch(() => {});
