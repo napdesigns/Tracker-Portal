@@ -604,8 +604,7 @@ select.form-control {
 .toolbar {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
+  gap: 10px;
   flex-wrap: wrap;
 }
 
@@ -614,6 +613,19 @@ select.form-control {
   align-items: center;
   gap: 8px;
   flex-wrap: wrap;
+}
+
+.toolbar-filters .form-control,
+.toolbar-filters select,
+.toolbar-filters .dp-wrap {
+  min-width: 0;
+  width: auto !important;
+  flex-shrink: 0;
+}
+
+.table-toolbar .dp-wrap,
+.date-range-filter .dp-wrap {
+  width: auto !important;
 }
 
 .search-box {
