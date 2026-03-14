@@ -16,6 +16,7 @@ import { renderUsers } from './users.js';
 import { renderAnalytics } from './analytics.js';
 import { renderKanban, initKanbanDragDrop } from './kanban.js';
 import { renderActivityLog } from './activity-log.js';
+import { renderPayments } from './payments.js';
 import { renderChat, renderChatBubble } from './chat.js';
 import { showToast } from './toast.js';
 import { renderNotificationBell } from './notifications.js';
@@ -73,6 +74,7 @@ async function renderAppShell(content) {
     { id: 'analytics', icon: icons.analytics, label: 'Analytics' },
   ];
 
+  navItems.push({ id: 'payments', icon: icons.dollarSign, label: 'Payments' });
   if (adminUser) {
     navItems.push({ id: 'users', icon: icons.users, label: 'Users' });
   }
@@ -176,6 +178,9 @@ async function renderApp() {
         break;
       case 'kanban':
         pageContent = await renderKanban();
+        break;
+      case 'payments':
+        pageContent = await renderPayments();
         break;
       case 'chat':
         pageContent = await renderChat();

@@ -263,6 +263,7 @@ async function renderTable() {
           <td class="${t.dueDate && t.dueDate.split('T')[0] < new Date().toISOString().split('T')[0] && !['approved', 'rejected'].includes(t.status) ? 'overdue-cell' : ''}">${t.dueDate ? (t.dueDate.includes('T') ? formatDateTime(t.dueDate) : formatDate(t.dueDate)) : '—'}</td>
           <td>${adminUser ? freelancerName : ''}</td>
           <td>${iterCount > 0 ? `<span class="badge badge-iteration">${iterCount}</span>` : '0'}</td>
+          <td class="star-rating-display">${t.rating ? '★'.repeat(t.rating) + '☆'.repeat(5 - t.rating) : '—'}</td>
           <td class="row-actions" onclick="event.stopPropagation();">${actionsHTML}</td>
         </tr>
       `;
@@ -365,6 +366,7 @@ async function renderTable() {
                 ${sortableHeader('Due Date', 'dueDate')}
                 ${adminUser ? '<th>Assigned To</th>' : '<th></th>'}
                 ${sortableHeader('Iters', 'iterations')}
+                <th>Rating</th>
                 <th>Actions</th>
               </tr>
             </thead>
@@ -685,7 +687,7 @@ async function showTaskModal(task) {
           <div class="form-row">
             <div class="form-group">
               <label>Type</label>
-              <select class="form-control" id="task-type">
+              <select class="form-control" id="task-type" onchange="autoFillPrice()">
                 <option value="Static" ${task && task.type === 'Static' ? 'selected' : ''}>Static</option>
                 <option value="Animated" ${task && task.type === 'Animated' ? 'selected' : ''}>Animated</option>
                 <option value="Video" ${task && task.type === 'Video' ? 'selected' : ''}>Video</option>
@@ -698,10 +700,10 @@ async function showTaskModal(task) {
             </div>
             <div class="form-group">
               <label>Assign To</label>
-              <select class="form-control" id="task-assigned">
+              <select class="form-control" id="task-assigned" onchange="autoFillPrice()">
                 <option value="">Select Freelancer</option>
                 ${freelancers.map(f => `
-                  <option value="${f.id}" ${task && task.assignedTo === f.id ? 'selected' : ''}>${sanitizeHTML(f.name)}</option>
+                  <option value="${f.id}" data-pricing='${JSON.stringify(f.pricing || {})}' ${task && task.assignedTo === f.id ? 'selected' : ''}>${sanitizeHTML(f.name)}</option>
                 `).join('')}
               </select>
             </div>
@@ -770,6 +772,21 @@ async function showTaskModal(task) {
     const closeModal = () => overlay.remove();
     overlay.querySelector('#modal-close-btn').onclick = closeModal;
     overlay.querySelector('#task-cancel-btn').onclick = closeModal;
+
+    // Auto-fill price based on type + freelancer pricing
+    window.autoFillPrice = function () {
+        const typeEl = overlay.querySelector('#task-type');
+        const assignedEl = overlay.querySelector('#task-assigned');
+        const amountEl = overlay.querySelector('#task-amount');
+        if (!typeEl || !assignedEl || !amountEl) return;
+        const selectedOption = assignedEl.options[assignedEl.selectedIndex];
+        if (!selectedOption || !selectedOption.dataset.pricing) return;
+        try {
+            const pricing = JSON.parse(selectedOption.dataset.pricing);
+            const price = pricing[typeEl.value];
+            if (price) amountEl.value = price;
+        } catch (e) { /* ignore */ }
+    };
 
     // Upload zone
     const uploadZone = overlay.querySelector('#upload-zone');

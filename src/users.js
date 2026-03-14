@@ -40,21 +40,24 @@ async function renderUsers() {
                 <th>Name</th>
                 <th>Email</th>
                 <th>Role</th>
-                ${title === 'Freelancers' ? '<th>Tasks</th><th>Approved</th><th>Iterations</th>' : ''}
+                ${title === 'Freelancers' ? '<th>Tasks</th><th>Approved</th><th>Iterations</th><th>Points</th><th>Badge</th>' : ''}
                 <th>Actions</th>
               </tr>
             </thead>
             <tbody>
               ${usersList.length === 0 ? `
-                <tr><td colspan="${title === 'Freelancers' ? 7 : 4}" style="text-align: center; color: var(--text-muted); padding: 30px;">No ${title.toLowerCase()} yet</td></tr>
+                <tr><td colspan="${title === 'Freelancers' ? 9 : 4}" style="text-align: center; color: var(--text-muted); padding: 30px;">No ${title.toLowerCase()} yet</td></tr>
               ` : usersList.map(u => {
             let statsHTML = '';
             if (title === 'Freelancers') {
                 const fStats = freelancerStatsMap[u.id] || { totalTasks: 0, approved: 0, totalIterations: 0 };
+                const badgeClass = u.badge === 'Platinum' ? 'approved' : u.badge === 'Gold' ? 'assigned' : u.badge === 'Silver' ? 'submitted' : '';
                 statsHTML = `
                     <td>${fStats.totalTasks}</td>
                     <td>${fStats.approved}</td>
                     <td>${fStats.totalIterations}</td>
+                    <td>${u.points || 0}</td>
+                    <td>${u.badge ? `<span class="badge badge-${badgeClass}">${u.badge}</span>` : '—'}</td>
                   `;
             }
             const canDelete = u.id !== currentUser.id && (superAdmin || u.role === 'freelancer');
@@ -131,10 +134,44 @@ async function showUserModal(user, defaultRole) {
           </div>
           <div class="form-group">
             <label>Role</label>
-            <select class="form-control" id="user-role">
+            <select class="form-control" id="user-role" onchange="togglePricingSection()">
               ${superAdminCheck ? `<option value="admin" ${defaultRole === 'admin' ? 'selected' : ''}>Admin</option>` : ''}
               <option value="freelancer" ${defaultRole === 'freelancer' ? 'selected' : ''}>Freelancer</option>
             </select>
+          </div>
+          <div id="pricing-section" style="${(user?.role || defaultRole) === 'freelancer' ? '' : 'display:none;'}">
+            <div style="margin-bottom: 8px; font-weight: 600; font-size: 0.85rem; color: var(--text-primary);">Pricing per Type (₹)</div>
+            <div class="form-row">
+              <div class="form-group"><label>Static</label><input type="number" class="form-control" id="price-Static" value="${user?.pricing?.Static || ''}" placeholder="0" min="0" /></div>
+              <div class="form-group"><label>Animated</label><input type="number" class="form-control" id="price-Animated" value="${user?.pricing?.Animated || ''}" placeholder="0" min="0" /></div>
+            </div>
+            <div class="form-row">
+              <div class="form-group"><label>Video</label><input type="number" class="form-control" id="price-Video" value="${user?.pricing?.Video || ''}" placeholder="0" min="0" /></div>
+              <div class="form-group"><label>Carousel</label><input type="number" class="form-control" id="price-Carousel" value="${user?.pricing?.Carousel || ''}" placeholder="0" min="0" /></div>
+            </div>
+            <div class="form-row">
+              <div class="form-group"><label>Reels</label><input type="number" class="form-control" id="price-Reels" value="${user?.pricing?.Reels || ''}" placeholder="0" min="0" /></div>
+              <div class="form-group"><label>Logo</label><input type="number" class="form-control" id="price-Logo" value="${user?.pricing?.Logo || ''}" placeholder="0" min="0" /></div>
+            </div>
+            <div class="form-row">
+              <div class="form-group"><label>Branding</label><input type="number" class="form-control" id="price-Branding" value="${user?.pricing?.Branding || ''}" placeholder="0" min="0" /></div>
+              <div class="form-group"><label>Other</label><input type="number" class="form-control" id="price-Other" value="${user?.pricing?.Other || ''}" placeholder="0" min="0" /></div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label>Points</label>
+                <input type="number" class="form-control" id="user-points" value="${user?.points || 0}" min="0" />
+              </div>
+              <div class="form-group">
+                <label>Badge</label>
+                <select class="form-control" id="user-badge">
+                  <option value="" ${!user?.badge ? 'selected' : ''}>None</option>
+                  <option value="Silver" ${user?.badge === 'Silver' ? 'selected' : ''}>Silver (1000+)</option>
+                  <option value="Gold" ${user?.badge === 'Gold' ? 'selected' : ''}>Gold (2000+)</option>
+                  <option value="Platinum" ${user?.badge === 'Platinum' ? 'selected' : ''}>Platinum (3000+)</option>
+                </select>
+              </div>
+            </div>
           </div>
         </form>
       </div>
@@ -151,11 +188,31 @@ async function showUserModal(user, defaultRole) {
     overlay.querySelector('#user-modal-close').onclick = closeModal;
     overlay.querySelector('#user-cancel-btn').onclick = closeModal;
 
+    // Toggle pricing section based on role
+    window.togglePricingSection = function () {
+        const role = overlay.querySelector('#user-role').value;
+        const section = overlay.querySelector('#pricing-section');
+        if (section) section.style.display = role === 'freelancer' ? '' : 'none';
+    };
+
     overlay.querySelector('#user-save-btn').onclick = async () => {
         const name = overlay.querySelector('#user-name').value.trim();
         const email = overlay.querySelector('#user-email').value.trim();
         const password = overlay.querySelector('#user-password').value;
         const role = overlay.querySelector('#user-role').value;
+
+        // Collect pricing for freelancers
+        const pricing = {};
+        const types = ['Static', 'Animated', 'Video', 'Carousel', 'Reels', 'Logo', 'Branding', 'Other'];
+        if (role === 'freelancer') {
+            types.forEach(t => {
+                const val = overlay.querySelector(`#price-${t}`)?.value;
+                if (val && parseFloat(val) > 0) pricing[t] = parseFloat(val);
+            });
+        }
+
+        const points = parseInt(overlay.querySelector('#user-points')?.value) || 0;
+        const badge = overlay.querySelector('#user-badge')?.value || null;
 
         if (!name || !email || !password) {
             showToast('All fields are required', 'error');
@@ -164,10 +221,10 @@ async function showUserModal(user, defaultRole) {
 
         try {
             if (isEdit) {
-                await updateUser(user.id, { name, password, role });
+                await updateUser(user.id, { name, password, role, pricing, points, badge });
                 showToast('User updated!', 'success');
             } else {
-                await addUser({ name, email, password, role });
+                await addUser({ name, email, password, role, pricing, points, badge });
                 showToast('User created!', 'success');
             }
             closeModal();

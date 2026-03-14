@@ -4,7 +4,7 @@
 
 import {
     getTaskById, getUserById, isAdmin, getCurrentUser, formatDate, formatDateTime, timeDiff, sanitizeHTML,
-    rejectTask, getTaskComments, addTaskComment, deleteTaskComment,
+    rejectTask, updateTask, getTaskComments, addTaskComment, deleteTaskComment,
 } from './store-async.js';
 import { showToast } from './toast.js';
 import icons from './icons.js';
@@ -259,6 +259,13 @@ async function renderTaskDetail(taskId) {
           <div class="field-label">Iterations</div>
           <div class="field-value">${iterations.length}</div>
         </div>
+        <div class="detail-field">
+          <div class="field-label">Rating</div>
+          <div class="field-value">${adminUser
+            ? `<div class="star-rating-input">${[1,2,3,4,5].map(s => `<span class="star-btn ${task.rating >= s ? 'active' : ''}" onclick="rateTask('${task.id}', ${s})">${task.rating >= s ? '★' : '☆'}</span>`).join('')}</div>`
+            : (task.rating ? '★'.repeat(task.rating) + '☆'.repeat(5 - task.rating) : '—')
+          }</div>
+        </div>
       </div>
 
       <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 28px;">
@@ -436,5 +443,30 @@ function creativeStatusBadgeClass(creativeStatus) {
 function capitalize(str) {
     return str ? str.charAt(0).toUpperCase() + str.slice(1) : '';
 }
+
+// Rate a task (admin only) — also awards points to freelancer
+window.rateTask = async function (taskId, rating) {
+    try {
+        const task = await getTaskById(taskId);
+        await updateTask(taskId, { rating });
+
+        // Award points to freelancer based on rating
+        if (task && task.assignedTo) {
+            const { getUserById: getUser, updateUser: updUser } = await import('./store-async.js');
+            const freelancer = await getUser(task.assignedTo);
+            if (freelancer) {
+                const pointsMap = { 1: 20, 2: 40, 3: 60, 4: 80, 5: 100 };
+                const oldRatingPoints = task.rating ? (pointsMap[task.rating] || 0) : 0;
+                const newPoints = (freelancer.points || 0) - oldRatingPoints + (pointsMap[rating] || 0);
+                const badge = newPoints >= 3000 ? 'Platinum' : newPoints >= 2000 ? 'Gold' : newPoints >= 1000 ? 'Silver' : null;
+                await updUser(freelancer.id, { points: newPoints, badge });
+            }
+        }
+        showToast(`Rated ${rating} star${rating > 1 ? 's' : ''}`, 'success');
+        await window.renderApp();
+    } catch (err) {
+        showToast(err.message, 'error');
+    }
+};
 
 export { renderTaskDetail };

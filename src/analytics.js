@@ -4,15 +4,30 @@
 
 import {
     getCurrentUser, isAdmin, getTasks, getFreelancers,
-    getStats, MONTHS, formatDate,
+    getStats, MONTHS, formatDate, sanitizeHTML,
 } from './store-async.js';
 import icons from './icons.js';
 
 async function renderAnalytics() {
     const user = await getCurrentUser();
     const adminUser = await isAdmin();
-    const allTasks = await getTasks();
+    let allTasks = await getTasks();
     const freelancers = adminUser ? await getFreelancers() : [];
+
+    // Analytics filter state
+    const af = window.appState.analyticsFilters || {};
+    const afMonth = af.month ?? 'all';
+    const afFreelancer = af.freelancer || 'all';
+    const afClient = af.client || '';
+    const afDateFrom = af.dateFrom || '';
+    const afDateTo = af.dateTo || '';
+
+    // Apply filters
+    if (afMonth !== 'all') allTasks = allTasks.filter(t => new Date(t.date).getMonth() === parseInt(afMonth));
+    if (afFreelancer !== 'all') allTasks = allTasks.filter(t => t.assignedTo === afFreelancer);
+    if (afClient) allTasks = allTasks.filter(t => (t.client || '').toLowerCase().includes(afClient.toLowerCase()));
+    if (afDateFrom) allTasks = allTasks.filter(t => t.date >= afDateFrom);
+    if (afDateTo) allTasks = allTasks.filter(t => t.date <= afDateTo);
 
     // ---- Data Preparation ----
 
@@ -182,12 +197,39 @@ async function renderAnalytics() {
         return segment;
     }).join(', ');
 
+    const freelancerFilterOpts = freelancers.map(f =>
+        `<option value="${f.id}" ${afFreelancer === f.id ? 'selected' : ''}>${sanitizeHTML(f.name)}</option>`
+    ).join('');
+    const monthFilterOpts = MONTHS.map((m, i) =>
+        `<option value="${i}" ${afMonth === String(i) ? 'selected' : ''}>${m}</option>`
+    ).join('');
+
     return `
     <div class="page-header">
       <h1>Analytics</h1>
       <span style="color: var(--text-secondary); font-size: 0.85rem;">${currentYear} Overview</span>
     </div>
     <div class="page-body">
+      <!-- Analytics Filters -->
+      <div class="toolbar" style="margin-bottom: 16px;">
+        <div class="toolbar-filters">
+          <select class="form-control" style="font-size:0.8rem;padding:6px 10px;" onchange="filterAnalytics('month', this.value)">
+            <option value="all" ${afMonth === 'all' ? 'selected' : ''}>All Months</option>
+            ${monthFilterOpts}
+          </select>
+          ${adminUser ? `
+          <select class="form-control" style="font-size:0.8rem;padding:6px 10px;" onchange="filterAnalytics('freelancer', this.value)">
+            <option value="all" ${afFreelancer === 'all' ? 'selected' : ''}>All Freelancers</option>
+            ${freelancerFilterOpts}
+          </select>
+          ` : ''}
+          <input type="text" class="form-control" style="font-size:0.8rem;padding:6px 10px;width:150px;" placeholder="Filter by client..." value="${sanitizeHTML(afClient)}" oninput="filterAnalytics('client', this.value)" />
+          <input type="date" class="form-control" style="font-size:0.8rem;padding:6px 10px;" value="${afDateFrom}" onchange="filterAnalytics('dateFrom', this.value)" title="From date" />
+          <input type="date" class="form-control" style="font-size:0.8rem;padding:6px 10px;" value="${afDateTo}" onchange="filterAnalytics('dateTo', this.value)" title="To date" />
+          ${(afMonth !== 'all' || afFreelancer !== 'all' || afClient || afDateFrom || afDateTo) ? `<button class="btn btn-sm btn-outline" onclick="clearAnalyticsFilters()">Clear</button>` : ''}
+        </div>
+      </div>
+
       <!-- Top Stats -->
       <div class="stat-cards">
         <div class="stat-card purple">
@@ -286,5 +328,16 @@ async function renderAnalytics() {
     </div>
   `;
 }
+
+window.filterAnalytics = function (key, value) {
+    if (!window.appState.analyticsFilters) window.appState.analyticsFilters = {};
+    window.appState.analyticsFilters[key] = value;
+    window.renderApp();
+};
+
+window.clearAnalyticsFilters = function () {
+    window.appState.analyticsFilters = {};
+    window.renderApp();
+};
 
 export { renderAnalytics };

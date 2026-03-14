@@ -227,6 +227,9 @@ export async function updateUser(id, data) {
     const updateData = {};
     if (data.name !== undefined) updateData.name = data.name;
     if (data.role !== undefined) updateData.role = data.role;
+    if (data.pricing !== undefined) updateData.pricing = data.pricing;
+    if (data.points !== undefined) updateData.points = data.points;
+    if (data.badge !== undefined) updateData.badge = data.badge;
 
     const { data: profile, error } = await supabase
         .from('profiles')
@@ -959,7 +962,7 @@ export async function getChatMessages(limit = 100, recipientId = null) {
     return (data || []).map(toCamelCase);
 }
 
-export async function sendChatMessage(message, recipientId = null) {
+export async function sendChatMessage(message, recipientId = null, attachment = null) {
     const user = await getCurrentUser();
     if (!user) throw new Error('Not logged in');
 
@@ -967,6 +970,29 @@ export async function sendChatMessage(message, recipientId = null) {
     if (recipientId) {
         const recipient = await getUserById(recipientId);
         recipientName = recipient ? recipient.name : 'Unknown';
+    }
+
+    // Upload attachment to Supabase Storage if provided
+    let attachmentUrl = null;
+    let attachmentName = null;
+    if (attachment) {
+        attachmentName = attachment.name;
+        if (isSupabaseConfigured()) {
+            const filePath = `chat/${Date.now()}_${attachment.name}`;
+            const { data: uploadData, error: uploadError } = await supabase.storage
+                .from('creatives')
+                .upload(filePath, attachment);
+            if (uploadError) throw new Error('File upload failed: ' + uploadError.message);
+            const { data: urlData } = supabase.storage.from('creatives').getPublicUrl(filePath);
+            attachmentUrl = urlData.publicUrl;
+        } else {
+            // localStorage fallback: store as data URL
+            attachmentUrl = await new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result);
+                reader.readAsDataURL(attachment);
+            });
+        }
     }
 
     if (!isSupabaseConfigured()) {
@@ -979,6 +1005,8 @@ export async function sendChatMessage(message, recipientId = null) {
             message,
             recipientId: recipientId || null,
             recipientName,
+            attachmentUrl,
+            attachmentName,
             createdAt: new Date().toISOString(),
         };
         msgs.push(msg);
@@ -995,6 +1023,10 @@ export async function sendChatMessage(message, recipientId = null) {
     if (recipientId) {
         insertData.recipient_id = recipientId;
         insertData.recipient_name = recipientName;
+    }
+    if (attachmentUrl) {
+        insertData.attachment_url = attachmentUrl;
+        insertData.attachment_name = attachmentName;
     }
 
     const { data, error } = await supabase

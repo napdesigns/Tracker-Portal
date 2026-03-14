@@ -14,6 +14,9 @@ CREATE TABLE IF NOT EXISTS profiles (
     name TEXT NOT NULL,
     email TEXT UNIQUE NOT NULL,
     role TEXT NOT NULL CHECK (role IN ('superadmin', 'admin', 'freelancer')),
+    pricing JSONB DEFAULT '{}',
+    points INTEGER NOT NULL DEFAULT 0,
+    badge TEXT DEFAULT NULL CHECK (badge IS NULL OR badge IN ('Silver', 'Gold', 'Platinum')),
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -43,6 +46,7 @@ CREATE TABLE IF NOT EXISTS tasks (
     rejection_reason TEXT,
     due_date TIMESTAMPTZ,
     description TEXT DEFAULT '',
+    rating INTEGER DEFAULT NULL CHECK (rating IS NULL OR (rating >= 1 AND rating <= 5)),
     source_link TEXT DEFAULT '',
     month INTEGER GENERATED ALWAYS AS (EXTRACT(MONTH FROM date)::INTEGER - 1) STORED,
     created_at TIMESTAMPTZ DEFAULT NOW(),
@@ -351,6 +355,8 @@ CREATE TABLE IF NOT EXISTS chat_messages (
     message TEXT NOT NULL DEFAULT '',
     recipient_id UUID REFERENCES profiles(id) ON DELETE SET NULL,
     recipient_name TEXT DEFAULT NULL,
+    attachment_url TEXT DEFAULT NULL,
+    attachment_name TEXT DEFAULT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 

@@ -25,11 +25,11 @@ async function renderKanban() {
     const user = await getCurrentUser();
     const adminUser = await isAdmin();
 
-    let tasks;
+    let allTasks;
     if (adminUser) {
-        tasks = await getTasks();
+        allTasks = await getTasks();
     } else {
-        tasks = await getTasksByFreelancer(user.id);
+        allTasks = await getTasksByFreelancer(user.id);
     }
 
     // Build freelancer map
@@ -41,6 +41,16 @@ async function renderKanban() {
     if (!adminUser && user) {
         freelancerMap[user.id] = user;
     }
+
+    // Apply kanban filters
+    const kcf = window.appState.kanbanClientFilter || '';
+    const kff = window.appState.kanbanFreelancerFilter || 'all';
+    let tasks = allTasks;
+    if (kcf) tasks = tasks.filter(t => (t.client || '').toLowerCase().includes(kcf.toLowerCase()));
+    if (kff !== 'all') tasks = tasks.filter(t => t.assignedTo === kff);
+
+    // Unique clients for filter dropdown
+    const uniqueClients = [...new Set(allTasks.map(t => t.client).filter(Boolean))].sort();
 
     // Group tasks by status
     const tasksByStatus = {};
@@ -93,6 +103,10 @@ async function renderKanban() {
     `;
     }).join('');
 
+    const freelancerFilterOptions = freelancers.map(f =>
+        `<option value="${f.id}" ${kff === f.id ? 'selected' : ''}>${sanitizeHTML(f.name)}</option>`
+    ).join('');
+
     return `
     <div class="page-header">
       <h1>Kanban Board</h1>
@@ -101,6 +115,17 @@ async function renderKanban() {
       </div>
     </div>
     <div class="page-body">
+      <div class="toolbar" style="margin-bottom: 12px;">
+        <div class="toolbar-filters">
+          <input type="text" class="form-control" style="font-size:0.8rem;padding:6px 10px;width:180px;" placeholder="Filter by client..." value="${sanitizeHTML(kcf)}" oninput="filterKanban('client', this.value)" />
+          ${adminUser ? `
+          <select class="form-control" style="font-size:0.8rem;padding:6px 10px;" onchange="filterKanban('freelancer', this.value)">
+            <option value="all" ${kff === 'all' ? 'selected' : ''}>All Freelancers</option>
+            ${freelancerFilterOptions}
+          </select>
+          ` : ''}
+        </div>
+      </div>
       <div class="kanban-board">${columnsHTML}</div>
     </div>
   `;
@@ -164,6 +189,13 @@ function initKanbanDragDrop() {
         });
     });
 }
+
+// Kanban filter handler
+window.filterKanban = function (key, value) {
+    if (key === 'client') window.appState.kanbanClientFilter = value;
+    if (key === 'freelancer') window.appState.kanbanFreelancerFilter = value;
+    window.renderApp();
+};
 
 // Make init available globally for post-render setup
 window.initKanbanDragDrop = initKanbanDragDrop;

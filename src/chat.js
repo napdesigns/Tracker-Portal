@@ -31,6 +31,25 @@ function getInitials(name) {
     return (name || 'U').split(' ').map(n => n[0]).join('').toUpperCase();
 }
 
+function renderAttachment(msg) {
+    if (!msg.attachmentUrl) return '';
+    const name = msg.attachmentName || 'Attachment';
+    const isImage = /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(name);
+    if (isImage) {
+        return `
+        <div class="chat-attachment-preview">
+          <a href="${msg.attachmentUrl}" target="_blank" rel="noopener">
+            <img src="${msg.attachmentUrl}" alt="${sanitize(name)}" loading="lazy" />
+          </a>
+        </div>`;
+    }
+    return `
+    <div class="chat-attachment">
+      ${icons.paperclip}
+      <a href="${msg.attachmentUrl}" target="_blank" rel="noopener">${sanitize(name)}</a>
+    </div>`;
+}
+
 function renderMessageBubbles(messages, user) {
     if (messages.length === 0) {
         return `<div class="chat-empty">
@@ -49,7 +68,8 @@ function renderMessageBubbles(messages, user) {
           ${!isMe ? `<div class="chat-avatar">${initials}</div>` : ''}
           <div class="chat-bubble ${isMe ? 'mine' : ''}">
             ${!isMe ? `<div class="chat-sender">${sanitize(msg.userName)} <span class="chat-role">${roleLabel}</span></div>` : ''}
-            <div class="chat-text">${sanitize(msg.message)}</div>
+            ${msg.message ? `<div class="chat-text">${sanitize(msg.message)}</div>` : ''}
+            ${renderAttachment(msg)}
             <div class="chat-time">${timeAgo(msg.createdAt)}</div>
           </div>
         </div>
@@ -162,8 +182,18 @@ async function renderChat() {
             ${messagesHTML}
           </div>
           ${recipientBar}
+          <div id="chat-file-pending" style="display:none;padding:4px 16px;">
+            <div class="chat-file-pending">
+              ${icons.paperclip} <span id="chat-file-name"></span>
+              <span class="remove-file" onclick="clearChatFile()">&times;</span>
+            </div>
+          </div>
           <div class="chat-input-bar">
-            <input type="text" class="chat-input" id="chat-input" placeholder="Type a message to ${sanitize(activeLabel)}..." autocomplete="off" />
+            <label class="chat-file-input-label" title="Attach file">
+              ${icons.paperclip}
+              <input type="file" id="chat-file-input" style="display:none;" onchange="onChatFileSelected(this)" />
+            </label>
+            <input type="text" class="chat-input" id="chat-input" placeholder="Type a message to ${sanitize(activeLabel)}..." autocomplete="off" style="flex:1;" />
             <button class="btn btn-primary chat-send-btn" id="chat-send-btn" onclick="handleSendChat()">
               ${icons.send} Send
             </button>
@@ -179,16 +209,44 @@ async function renderChat() {
 // Chat Page Handlers
 // ==========================================
 
+let pendingChatFile = null;
+
+window.onChatFileSelected = function (input) {
+    const file = input.files && input.files[0];
+    if (!file) return;
+    if (file.size > 25 * 1024 * 1024) {
+        showToast('File size must be under 25MB', 'error');
+        input.value = '';
+        return;
+    }
+    pendingChatFile = file;
+    const nameEl = document.getElementById('chat-file-name');
+    const pendingEl = document.getElementById('chat-file-pending');
+    if (nameEl) nameEl.textContent = file.name;
+    if (pendingEl) pendingEl.style.display = '';
+};
+
+window.clearChatFile = function () {
+    pendingChatFile = null;
+    const pendingEl = document.getElementById('chat-file-pending');
+    const fileInput = document.getElementById('chat-file-input');
+    if (pendingEl) pendingEl.style.display = 'none';
+    if (fileInput) fileInput.value = '';
+};
+
 window.handleSendChat = async function () {
     const input = document.getElementById('chat-input');
     if (!input) return;
     const message = input.value.trim();
-    if (!message) return;
+    if (!message && !pendingChatFile) return;
 
     input.value = '';
+    const file = pendingChatFile;
+    pendingChatFile = null;
+
     const recipientId = activeConversationId === 'team' ? null : activeConversationId;
     try {
-        await sendChatMessage(message, recipientId);
+        await sendChatMessage(message || '', recipientId, file);
         await window.renderApp();
         setTimeout(() => {
             const container = document.getElementById('chat-messages');
@@ -319,8 +377,18 @@ async function renderChatBubble() {
       <div class="mini-chat-messages" id="mini-chat-messages">
         <div style="text-align:center;color:var(--text-muted);padding:24px;font-size:0.82rem;">Loading...</div>
       </div>
+      <div id="mini-chat-file-pending" style="display:none;padding:4px 8px;">
+        <div class="chat-file-pending" style="font-size:0.72rem;">
+          ${icons.paperclip} <span id="mini-chat-file-name"></span>
+          <span class="remove-file" onclick="clearMiniChatFile()">&times;</span>
+        </div>
+      </div>
       <div class="mini-chat-input-bar">
-        <input type="text" class="chat-input" id="mini-chat-input" placeholder="Type a message..." autocomplete="off" />
+        <label class="chat-file-input-label" title="Attach file" style="padding:4px;">
+          ${icons.paperclip}
+          <input type="file" id="mini-chat-file-input" style="display:none;" onchange="onMiniChatFileSelected(this)" />
+        </label>
+        <input type="text" class="chat-input" id="mini-chat-input" placeholder="Type a message..." autocomplete="off" style="flex:1;" />
         <button class="btn btn-primary btn-sm" onclick="handleSendMiniChat()">${icons.send}</button>
       </div>
     </div>
@@ -376,7 +444,8 @@ async function loadMiniChatMessages() {
               ${!isMe ? `<div class="chat-avatar" style="width:26px;height:26px;font-size:0.6rem;">${initials}</div>` : ''}
               <div class="chat-bubble ${isMe ? 'mine' : ''}">
                 ${!isMe ? `<div class="chat-sender" style="font-size:0.72rem;">${sanitize(msg.userName)}</div>` : ''}
-                <div class="chat-text" style="font-size:0.82rem;">${sanitize(msg.message)}</div>
+                ${msg.message ? `<div class="chat-text" style="font-size:0.82rem;">${sanitize(msg.message)}</div>` : ''}
+                ${renderAttachment(msg)}
                 <div class="chat-time">${timeAgo(msg.createdAt)}</div>
               </div>
             </div>
@@ -389,16 +458,44 @@ async function loadMiniChatMessages() {
 
 window.loadMiniChatMessages = loadMiniChatMessages;
 
+let pendingMiniChatFile = null;
+
+window.onMiniChatFileSelected = function (input) {
+    const file = input.files && input.files[0];
+    if (!file) return;
+    if (file.size > 25 * 1024 * 1024) {
+        showToast('File size must be under 25MB', 'error');
+        input.value = '';
+        return;
+    }
+    pendingMiniChatFile = file;
+    const nameEl = document.getElementById('mini-chat-file-name');
+    const pendingEl = document.getElementById('mini-chat-file-pending');
+    if (nameEl) nameEl.textContent = file.name;
+    if (pendingEl) pendingEl.style.display = '';
+};
+
+window.clearMiniChatFile = function () {
+    pendingMiniChatFile = null;
+    const pendingEl = document.getElementById('mini-chat-file-pending');
+    const fileInput = document.getElementById('mini-chat-file-input');
+    if (pendingEl) pendingEl.style.display = 'none';
+    if (fileInput) fileInput.value = '';
+};
+
 window.handleSendMiniChat = async function () {
     const input = document.getElementById('mini-chat-input');
     if (!input) return;
     const message = input.value.trim();
-    if (!message) return;
+    if (!message && !pendingMiniChatFile) return;
 
     input.value = '';
+    const file = pendingMiniChatFile;
+    pendingMiniChatFile = null;
+
     const recipientId = miniChatConvoId === 'team' ? null : miniChatConvoId;
     try {
-        await sendChatMessage(message, recipientId);
+        await sendChatMessage(message || '', recipientId, file);
         await loadMiniChatMessages();
     } catch (err) {
         showToast(err.message, 'error');
