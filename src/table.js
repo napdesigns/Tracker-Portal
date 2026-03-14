@@ -257,7 +257,6 @@ async function renderTable() {
           <td>${creativeCol}</td>
           <td>${sanitizeHTML(t.editableFileShared)}</td>
           <td><span class="badge badge-${t.status}">${formatStatusLabel(t.status)}</span></td>
-          <td><span class="badge badge-${creativeStatusBadgeClass(t.creativeStatus)}">${sanitizeHTML(t.creativeStatus || 'Pending')}</span></td>
           <td>₹${(parseFloat(t.amount) || 0).toLocaleString('en-IN')}</td>
           <td><span class="badge badge-${(t.paymentStatus || 'unpaid').toLowerCase()}">${sanitizeHTML(t.paymentStatus) || 'Unpaid'}</span></td>
           <td class="${t.dueDate && t.dueDate.split('T')[0] < new Date().toISOString().split('T')[0] && !['approved', 'rejected'].includes(t.status) ? 'overdue-cell' : ''}">${t.dueDate ? (t.dueDate.includes('T') ? formatDateTime(t.dueDate) : formatDate(t.dueDate)) : '—'}</td>
@@ -360,7 +359,6 @@ async function renderTable() {
                 <th>Creative</th>
                 <th>Editable File</th>
                 ${sortableHeader('Status', 'status')}
-                <th>Creative Status</th>
                 ${sortableHeader('Amount', 'amount')}
                 ${sortableHeader('Payment', 'payment')}
                 ${sortableHeader('Due Date', 'dueDate')}
@@ -389,16 +387,6 @@ function formatStatusLabel(status) {
         'rejected': 'Rejected',
     };
     return labels[status] || status;
-}
-
-function creativeStatusBadgeClass(creativeStatus) {
-    const map = {
-        'Pending': 'assigned',
-        'Approved': 'approved',
-        'Iteration': 'iteration',
-        'Rejected': 'rejected',
-    };
-    return map[creativeStatus] || 'assigned';
 }
 
 // ==========================================

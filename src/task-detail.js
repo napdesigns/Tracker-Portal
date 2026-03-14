@@ -252,10 +252,6 @@ async function renderTaskDetail(taskId) {
           <div class="field-value">${freelancer ? sanitizeHTML(freelancer.name) : '—'}</div>
         </div>
         <div class="detail-field">
-          <div class="field-label">Creative Status</div>
-          <div class="field-value"><span class="badge badge-${creativeStatusBadgeClass(task.creativeStatus)}">${task.creativeStatus || 'Pending'}</span></div>
-        </div>
-        <div class="detail-field">
           <div class="field-label">Iterations</div>
           <div class="field-value">${iterations.length}</div>
         </div>
@@ -504,16 +500,6 @@ window.copyCreativeLink = async function (taskId) {
         showToast('Link copied to clipboard!', 'success');
     }
 };
-
-function creativeStatusBadgeClass(creativeStatus) {
-    const map = {
-        'Pending': 'assigned',
-        'Approved': 'approved',
-        'Iteration': 'iteration',
-        'Rejected': 'rejected',
-    };
-    return map[creativeStatus] || 'assigned';
-}
 
 function capitalize(str) {
     return str ? str.charAt(0).toUpperCase() + str.slice(1) : '';
