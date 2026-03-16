@@ -45,9 +45,23 @@ async function renderKanban() {
     // Apply kanban filters
     const kcf = window.appState.kanbanClientFilter || '';
     const kff = window.appState.kanbanFreelancerFilter || 'all';
+    const ksearch = window.appState.kanbanSearch || '';
+    const kdfrom = window.appState.kanbanDateFrom || '';
+    const kdto = window.appState.kanbanDateTo || '';
     let tasks = allTasks;
     if (kcf) tasks = tasks.filter(t => (t.client || '').toLowerCase().includes(kcf.toLowerCase()));
     if (kff !== 'all') tasks = tasks.filter(t => t.assignedTo === kff);
+    if (ksearch) {
+        const q = ksearch.toLowerCase();
+        tasks = tasks.filter(t =>
+            (t.client || '').toLowerCase().includes(q) ||
+            (t.type || '').toLowerCase().includes(q) ||
+            (t.description || '').toLowerCase().includes(q) ||
+            String(t.slNo || '').includes(q)
+        );
+    }
+    if (kdfrom) tasks = tasks.filter(t => (t.date || '') >= kdfrom);
+    if (kdto) tasks = tasks.filter(t => (t.date || '') <= kdto);
 
     // Unique clients for filter dropdown
     const uniqueClients = [...new Set(allTasks.map(t => t.client).filter(Boolean))].sort();
@@ -116,17 +130,20 @@ async function renderKanban() {
       </div>
     </div>
     <div class="page-body">
-      ${adminUser ? `
       <div class="toolbar" style="margin-bottom: 12px;">
         <div class="toolbar-filters">
+          <input type="text" class="form-control" style="font-size:0.8rem;padding:6px 10px;width:180px;" placeholder="Search tasks..." value="${sanitizeHTML(ksearch)}" oninput="filterKanban('search', this.value)" />
+          <input type="date" class="form-control" style="font-size:0.8rem;padding:6px 10px;width:140px;" value="${kdfrom}" onchange="filterKanban('dateFrom', this.value)" title="From date" />
+          <input type="date" class="form-control" style="font-size:0.8rem;padding:6px 10px;width:140px;" value="${kdto}" onchange="filterKanban('dateTo', this.value)" title="To date" />
+          ${adminUser ? `
           <input type="text" class="form-control" style="font-size:0.8rem;padding:6px 10px;width:180px;" placeholder="Filter by client..." value="${sanitizeHTML(kcf)}" oninput="filterKanban('client', this.value)" />
           <select class="form-control" style="font-size:0.8rem;padding:6px 10px;" onchange="filterKanban('freelancer', this.value)">
             <option value="all" ${kff === 'all' ? 'selected' : ''}>All Freelancers</option>
             ${freelancerFilterOptions}
           </select>
+          ` : ''}
         </div>
       </div>
-      ` : ''}
       <div class="kanban-board">${columnsHTML}</div>
     </div>
   `;
@@ -195,6 +212,9 @@ function initKanbanDragDrop() {
 window.filterKanban = function (key, value) {
     if (key === 'client') window.appState.kanbanClientFilter = value;
     if (key === 'freelancer') window.appState.kanbanFreelancerFilter = value;
+    if (key === 'search') window.appState.kanbanSearch = value;
+    if (key === 'dateFrom') window.appState.kanbanDateFrom = value;
+    if (key === 'dateTo') window.appState.kanbanDateTo = value;
     window.renderApp();
 };
 

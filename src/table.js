@@ -47,7 +47,6 @@ window.showTemplateModal = function () {
             <div class="template-card" onclick="useTemplate(${i})">
               <h4>${sanitizeHTML(t.name)}</h4>
               <div class="template-meta">Type: ${sanitizeHTML(t.type)}</div>
-              <div class="template-meta">Amount: \u20B9${t.amount.toLocaleString('en-IN')}</div>
               <div class="template-meta" style="margin-top:6px; font-style:italic;">${sanitizeHTML(t.description)}</div>
             </div>
           `).join('')}
@@ -69,10 +68,8 @@ window.useTemplate = async function (index) {
     // Now pre-fill the fields from the template
     setTimeout(() => {
         const typeEl = document.getElementById('task-type');
-        const amountEl = document.getElementById('task-amount');
         const descEl = document.getElementById('task-description');
         if (typeEl) typeEl.value = template.type;
-        if (amountEl) amountEl.value = template.amount;
         if (descEl) descEl.value = template.description;
     }, 50);
 };
@@ -760,7 +757,7 @@ async function showTaskModal(task) {
           <div class="form-row">
             <div class="form-group">
               <label>Type</label>
-              <select class="form-control" id="task-type" onchange="autoFillPrice()">
+              <select class="form-control" id="task-type">
                 <option value="Static" ${task && task.type === 'Static' ? 'selected' : ''}>Static</option>
                 <option value="Animated" ${task && task.type === 'Animated' ? 'selected' : ''}>Animated</option>
                 <option value="Video" ${task && task.type === 'Video' ? 'selected' : ''}>Video</option>
@@ -773,7 +770,7 @@ async function showTaskModal(task) {
             </div>
             <div class="form-group">
               <label>Assign To</label>
-              <select class="form-control" id="task-assigned" onchange="autoFillPrice()">
+              <select class="form-control" id="task-assigned">
                 <option value="">Select Freelancer</option>
                 ${freelancers.map(f => `
                   <option value="${f.id}" data-pricing='${JSON.stringify(f.pricing || {})}' ${task && task.assignedTo === f.id ? 'selected' : ''}>${sanitizeHTML(f.name)}</option>
@@ -782,10 +779,6 @@ async function showTaskModal(task) {
             </div>
           </div>
           <div class="form-row">
-            <div class="form-group">
-              <label>Amount (₹)</label>
-              <input type="number" class="form-control" id="task-amount" value="${task ? task.amount : ''}" placeholder="0" min="0" />
-            </div>
             <div class="form-group">
               <label>Editable File Shared</label>
               <select class="form-control" id="task-editable">
@@ -857,21 +850,6 @@ async function showTaskModal(task) {
     overlay.querySelector('#modal-close-btn').onclick = closeModal;
     overlay.querySelector('#task-cancel-btn').onclick = closeModal;
 
-    // Auto-fill price based on type + freelancer pricing
-    window.autoFillPrice = function () {
-        const typeEl = overlay.querySelector('#task-type');
-        const assignedEl = overlay.querySelector('#task-assigned');
-        const amountEl = overlay.querySelector('#task-amount');
-        if (!typeEl || !assignedEl || !amountEl) return;
-        const selectedOption = assignedEl.options[assignedEl.selectedIndex];
-        if (!selectedOption || !selectedOption.dataset.pricing) return;
-        try {
-            const pricing = JSON.parse(selectedOption.dataset.pricing);
-            const price = pricing[typeEl.value];
-            if (price) amountEl.value = price;
-        } catch (e) { /* ignore */ }
-    };
-
     // Upload zone
     const uploadZone = overlay.querySelector('#upload-zone');
     const fileInput = overlay.querySelector('#creative-input');
@@ -922,8 +900,17 @@ async function showTaskModal(task) {
         const date = overlay.querySelector('#task-date').value;
         const client = overlay.querySelector('#task-client').value;
         const type = overlay.querySelector('#task-type').value;
-        const assignedTo = overlay.querySelector('#task-assigned').value;
-        const amount = overlay.querySelector('#task-amount').value;
+        const assignedEl = overlay.querySelector('#task-assigned');
+        const assignedTo = assignedEl.value;
+        // Auto-calculate amount from freelancer's pricing for the selected type
+        let amount = 0;
+        const selectedOption = assignedEl.options[assignedEl.selectedIndex];
+        if (selectedOption && selectedOption.dataset.pricing) {
+            try {
+                const pricing = JSON.parse(selectedOption.dataset.pricing);
+                amount = pricing[type] || 0;
+            } catch (e) { /* ignore */ }
+        }
         const editableFileShared = overlay.querySelector('#task-editable').value;
         const dueDateVal = overlay.querySelector('#task-due-date').value;
         const dueTimeVal = overlay.querySelector('#task-due-time').value;
