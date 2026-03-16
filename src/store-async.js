@@ -978,13 +978,23 @@ export async function sendChatMessage(message, recipientId = null, attachment = 
     if (attachment) {
         attachmentName = attachment.name;
         if (isSupabaseConfigured()) {
-            const filePath = `chat/${Date.now()}_${attachment.name}`;
-            const { data: uploadData, error: uploadError } = await supabase.storage
-                .from('creatives')
-                .upload(filePath, attachment);
-            if (uploadError) throw new Error('File upload failed: ' + uploadError.message);
-            const { data: urlData } = supabase.storage.from('creatives').getPublicUrl(filePath);
-            attachmentUrl = urlData.publicUrl;
+            try {
+                const filePath = `chat/${Date.now()}_${attachment.name}`;
+                const { data: uploadData, error: uploadError } = await supabase.storage
+                    .from('creatives')
+                    .upload(filePath, attachment);
+                if (uploadError) throw uploadError;
+                const { data: urlData } = supabase.storage.from('creatives').getPublicUrl(filePath);
+                attachmentUrl = urlData.publicUrl;
+            } catch (e) {
+                // Fallback to data URL if storage upload fails
+                console.warn('Storage upload failed, using data URL fallback:', e);
+                attachmentUrl = await new Promise((resolve) => {
+                    const reader = new FileReader();
+                    reader.onload = () => resolve(reader.result);
+                    reader.readAsDataURL(attachment);
+                });
+            }
         } else {
             // localStorage fallback: store as data URL
             attachmentUrl = await new Promise((resolve) => {
@@ -1029,11 +1039,29 @@ export async function sendChatMessage(message, recipientId = null, attachment = 
         insertData.attachment_name = attachmentName;
     }
 
-    const { data, error } = await supabase
+    let { data, error } = await supabase
         .from('chat_messages')
         .insert(insertData)
         .select()
         .single();
+
+    // If insert fails and we had attachment columns, retry without them
+    // (in case the DB hasn't been migrated with attachment columns yet)
+    if (error && (insertData.attachment_url || insertData.attachment_name)) {
+        const fallbackData = { ...insertData };
+        delete fallbackData.attachment_url;
+        delete fallbackData.attachment_name;
+        if (attachmentUrl) {
+            fallbackData.message = (message || '') + (message ? '\n' : '') + `[Voice message attached]`;
+        }
+        const retry = await supabase
+            .from('chat_messages')
+            .insert(fallbackData)
+            .select()
+            .single();
+        data = retry.data;
+        error = retry.error;
+    }
 
     if (error) throw new Error(error.message);
     return toCamelCase(data);
