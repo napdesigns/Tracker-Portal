@@ -134,13 +134,6 @@ async function renderAppShell(content) {
       </aside>
       <main class="main-content">
         <button class="hamburger-btn" onclick="toggleSidebar()" id="hamburger-btn">${icons.menu}</button>
-        <div class="global-search-bar" id="global-search-bar">
-          <div class="global-search-input-wrap">
-            ${icons.search}
-            <input type="text" class="global-search-input" id="global-search-input" placeholder="Search tasks..." oninput="handleGlobalSearch(this.value)" autocomplete="off" />
-            <div class="global-search-results" id="global-search-results" style="display:none;"></div>
-          </div>
-        </div>
         ${content}
       </main>
     </div>
@@ -184,48 +177,6 @@ window.toggleDarkMode = function () {
         document.documentElement.setAttribute('data-theme', 'dark');
     }
 })();
-
-window.handleGlobalSearch = async function (query) {
-    const results = document.getElementById('global-search-results');
-    if (!results) return;
-    if (!query || query.length < 2) {
-        results.style.display = 'none';
-        return;
-    }
-    const q = query.toLowerCase();
-    const { getTasks, getTasksByFreelancer, isAdmin: checkAdmin, getCurrentUser: getUser } = await import('./store-async.js');
-    const admin = await checkAdmin();
-    const user = await getUser();
-    const tasks = admin ? await getTasks() : await getTasksByFreelancer(user.id);
-    const matches = tasks.filter(t =>
-        (t.client || '').toLowerCase().includes(q) ||
-        (t.type || '').toLowerCase().includes(q) ||
-        String(t.slNo).includes(q) ||
-        (t.status || '').toLowerCase().includes(q)
-    ).slice(0, 8);
-
-    if (matches.length === 0) {
-        results.innerHTML = '<div class="search-no-results">No tasks found</div>';
-    } else {
-        results.innerHTML = matches.map(t => `
-            <div class="search-result-item" onclick="navigateTo('task-detail', { selectedTaskId: '${t.id}' })">
-                <span class="search-result-id">#${t.slNo}</span>
-                <span class="search-result-client">${t.client || '—'}</span>
-                <span class="badge badge-${t.status}" style="font-size:0.7rem;padding:2px 6px;">${t.status}</span>
-            </div>
-        `).join('');
-    }
-    results.style.display = '';
-};
-
-// Close search results when clicking outside
-document.addEventListener('click', (e) => {
-    const results = document.getElementById('global-search-results');
-    const wrap = document.getElementById('global-search-bar');
-    if (results && wrap && !wrap.contains(e.target)) {
-        results.style.display = 'none';
-    }
-});
 
 // ==========================================
 // Main Render
