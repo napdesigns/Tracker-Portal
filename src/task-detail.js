@@ -224,12 +224,20 @@ async function renderTaskDetail(taskId) {
           <div class="field-value">${sanitizeHTML(task.client) || '—'}</div>
         </div>
         <div class="detail-field">
+          <div class="field-label">Project</div>
+          <div class="field-value">${sanitizeHTML(task.project) || '—'}</div>
+        </div>
+        <div class="detail-field">
           <div class="field-label">Date</div>
           <div class="field-value">${formatDate(task.date)}</div>
         </div>
         <div class="detail-field">
           <div class="field-label">Type</div>
           <div class="field-value">${sanitizeHTML(task.type)}</div>
+        </div>
+        <div class="detail-field">
+          <div class="field-label">Category</div>
+          <div class="field-value">${sanitizeHTML(task.category) || '—'}</div>
         </div>
         <div class="detail-field">
           <div class="field-label">Amount</div>
@@ -255,6 +263,34 @@ async function renderTaskDetail(taskId) {
           <div class="field-label">Iterations</div>
           <div class="field-value">${iterations.length}</div>
         </div>
+        <div class="detail-field">
+          <div class="field-label">Estimated Hours</div>
+          <div class="field-value">${task.estimatedHours != null ? task.estimatedHours + 'h' : '—'}</div>
+        </div>
+        <div class="detail-field">
+          <div class="field-label">Actual Hours</div>
+          <div class="field-value">${adminUser
+            ? `<input type="number" class="form-control" style="width:80px;padding:4px 8px;font-size:0.85rem;" value="${task.actualHours || ''}" min="0" step="0.5" onchange="updateActualHours('${task.id}', this.value)" />`
+            : (task.actualHours != null ? task.actualHours + 'h' : '—')
+          }</div>
+        </div>
+        <div class="detail-field">
+          <div class="field-label">Progress</div>
+          <div class="field-value">
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div style="flex:1;height:8px;background:var(--border-color);border-radius:4px;overflow:hidden;min-width:60px;">
+                <div style="height:100%;width:${task.progress || 0}%;background:var(--accent-primary);border-radius:4px;transition:width 0.3s;"></div>
+              </div>
+              <span style="font-size:0.85rem;font-weight:600;">${task.progress || 0}%</span>
+            </div>
+          </div>
+        </div>
+        ${task.estimatedHours && task.actualHours && task.actualHours > task.estimatedHours ? `
+        <div class="detail-field">
+          <div class="field-label">Scope Alert</div>
+          <div class="field-value" style="color: var(--status-rejected); font-weight: 600;">⚠️ Over by ${(task.actualHours - task.estimatedHours).toFixed(1)}h (${Math.round((task.actualHours / task.estimatedHours) * 100)}% of estimate)</div>
+        </div>
+        ` : ''}
         <div class="detail-field">
           <div class="field-label">Rating</div>
           <div class="field-value">${adminUser
@@ -533,6 +569,22 @@ window.rateTask = async function (taskId, rating) {
     } catch (err) {
         showToast(err.message, 'error');
     }
+};
+
+// ==========================================
+// Actual Hours & Progress Inline Update
+// ==========================================
+
+window.updateActualHours = async function(taskId, value) {
+    const hours = parseFloat(value) || null;
+    await updateTask(taskId, { actualHours: hours });
+    showToast('Hours updated', 'success');
+};
+
+window.updateTaskProgress = async function(taskId, value) {
+    const progress = Math.min(100, Math.max(0, parseInt(value) || 0));
+    await updateTask(taskId, { progress });
+    showToast('Progress updated', 'success');
 };
 
 // ==========================================

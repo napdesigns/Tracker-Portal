@@ -27,7 +27,7 @@ async function renderClients() {
     const allClients = [...clients];
     for (const name of taskClients) {
         if (!allClients.find(c => c.name.toLowerCase() === name.toLowerCase())) {
-            allClients.push({ id: crypto.randomUUID(), name, email: '', phone: '', company: '', notes: '', createdAt: new Date().toISOString() });
+            allClients.push({ id: crypto.randomUUID(), name, contactPerson: '', email: '', phone: '', company: '', notes: '', createdAt: new Date().toISOString() });
         }
     }
 
@@ -41,11 +41,12 @@ async function renderClients() {
 
     let tableRows = '';
     if (clientRows.length === 0) {
-        tableRows = `<tr><td colspan="7"><div class="empty-state"><div class="empty-icon">${icons.users}</div><div class="empty-title">No clients yet</div><div class="empty-text">Clients will appear here from your tasks.</div></div></td></tr>`;
+        tableRows = `<tr><td colspan="8"><div class="empty-state"><div class="empty-icon">${icons.users}</div><div class="empty-title">No clients yet</div><div class="empty-text">Clients will appear here from your tasks.</div></div></td></tr>`;
     } else {
         tableRows = clientRows.map(c => `
             <tr>
                 <td><strong>${sanitizeHTML(c.name)}</strong></td>
+                <td>${sanitizeHTML(c.contactPerson || '—')}</td>
                 <td>${sanitizeHTML(c.email || '—')}</td>
                 <td>${sanitizeHTML(c.phone || '—')}</td>
                 <td>${sanitizeHTML(c.company || '—')}</td>
@@ -69,6 +70,7 @@ async function renderClients() {
           <thead>
             <tr>
               <th>Name</th>
+              <th>Contact Person</th>
               <th>Email</th>
               <th>Phone</th>
               <th>Company</th>
@@ -99,6 +101,7 @@ window.showAddClientModal = function(clientId) {
             </div>
             <div class="modal-body">
                 <div class="form-group"><label>Name *</label><input class="form-control" id="client-name" value="${client ? sanitizeHTML(client.name) : ''}" /></div>
+                <div class="form-group"><label>Contact Person</label><input class="form-control" id="client-contact-person" value="${client ? sanitizeHTML(client.contactPerson || '') : ''}" placeholder="Point of contact name" /></div>
                 <div class="form-group"><label>Email</label><input class="form-control" id="client-email" value="${client ? sanitizeHTML(client.email || '') : ''}" /></div>
                 <div class="form-group"><label>Phone</label><input class="form-control" id="client-phone" value="${client ? sanitizeHTML(client.phone || '') : ''}" /></div>
                 <div class="form-group"><label>Company</label><input class="form-control" id="client-company" value="${client ? sanitizeHTML(client.company || '') : ''}" /></div>
@@ -122,6 +125,7 @@ window.saveClient = function(existingId) {
     const clients = getClients();
     const data = {
         name,
+        contactPerson: document.getElementById('client-contact-person').value.trim(),
         email: document.getElementById('client-email').value.trim(),
         phone: document.getElementById('client-phone').value.trim(),
         company: document.getElementById('client-company').value.trim(),

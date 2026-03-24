@@ -7,8 +7,8 @@ import {
     getUserById, getFreelancers, deleteTask as deleteTaskFromStore,
     pickUpTask, submitTask, approveTask, rejectTask, requestIteration, resolveIteration,
     addTask, updateTask, uploadCompletedCreative, getTaskById,
-    uploadCreativeFile,
-    MONTHS, formatDate, formatDateTime, sanitizeHTML,
+    uploadCreativeFile, getProjects,
+    MONTHS, TASK_CATEGORIES, formatDate, formatDateTime, sanitizeHTML,
 } from './store-async.js';
 import { showToast } from './toast.js';
 import { validateImageFile } from './validation.js';
@@ -162,6 +162,10 @@ async function getFilteredTasks() {
                 return valA.localeCompare(valB) * dir;
             case 'type':
                 return (a.type || '').localeCompare(b.type || '') * dir;
+            case 'category':
+                return (a.category || '').localeCompare(b.category || '') * dir;
+            case 'project':
+                return (a.project || '').localeCompare(b.project || '') * dir;
             case 'status':
                 return (a.status || '').localeCompare(b.status || '') * dir;
             case 'amount':
@@ -239,7 +243,7 @@ async function renderTable() {
     if (tasks.length === 0) {
         tableBody = `
       <tr>
-        <td colspan="${adminUser ? '16' : '15'}">
+        <td colspan="${adminUser ? '18' : '17'}">
           <div class="empty-state">
             <div class="empty-icon">${icons.inbox}</div>
             <div class="empty-title">No tasks found</div>
@@ -315,6 +319,8 @@ async function renderTable() {
           <td>${formatDate(t.date)}</td>
           <td><strong>${sanitizeHTML(t.client) || '—'}</strong></td>
           <td>${sanitizeHTML(t.type)}</td>
+          <td>${sanitizeHTML(t.category) || '—'}</td>
+          <td>${sanitizeHTML(t.project) || '—'}</td>
           <td>${creativeCol}</td>
           <td>${sanitizeHTML(t.editableFileShared)}</td>
           <td><span class="badge badge-${t.status}">${formatStatusLabel(t.status)}</span></td>
@@ -437,6 +443,8 @@ async function renderTable() {
                 ${sortableHeader('Date', 'date')}
                 ${sortableHeader('Client', 'client')}
                 ${sortableHeader('Type', 'type')}
+                ${sortableHeader('Category', 'category')}
+                ${sortableHeader('Project', 'project')}
                 <th>Creative</th>
                 <th>Editable File</th>
                 ${sortableHeader('Status', 'status')}
@@ -732,6 +740,7 @@ window.openEditTaskModal = async function (id) {
 async function showTaskModal(task) {
     const isEdit = !!task;
     const freelancers = await getFreelancers();
+    const projects = await getProjects();
     const user = await getCurrentUser();
 
     const overlay = document.createElement('div');
@@ -752,6 +761,22 @@ async function showTaskModal(task) {
             <div class="form-group">
               <label>Client</label>
               <input type="text" class="form-control" id="task-client" value="${task ? sanitizeHTML(task.client) : ''}" placeholder="Client name" required />
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Project</label>
+              <select class="form-control" id="task-project">
+                <option value="">No Project</option>
+                ${projects.map(p => `<option value="${p.name}" ${task && task.project === p.name ? 'selected' : ''}>${sanitizeHTML(p.name)} (${sanitizeHTML(p.client)})</option>`).join('')}
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Category</label>
+              <select class="form-control" id="task-category">
+                <option value="">No Category</option>
+                ${TASK_CATEGORIES.map(c => `<option value="${c}" ${task && task.category === c ? 'selected' : ''}>${c}</option>`).join('')}
+              </select>
             </div>
           </div>
           <div class="form-row">
@@ -796,6 +821,16 @@ async function showTaskModal(task) {
                 <option value="high" ${task && task.priority === 'high' ? 'selected' : ''}>High</option>
                 <option value="urgent" ${task && task.priority === 'urgent' ? 'selected' : ''}>Urgent</option>
               </select>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Estimated Hours</label>
+              <input type="number" class="form-control" id="task-est-hours" value="${task ? task.estimatedHours || '' : ''}" placeholder="0" min="0" step="0.5" />
+            </div>
+            <div class="form-group">
+              <label>Progress %</label>
+              <input type="number" class="form-control" id="task-progress" value="${task ? task.progress || 0 : 0}" placeholder="0" min="0" max="100" />
             </div>
           </div>
           <div class="form-row">
@@ -918,6 +953,10 @@ async function showTaskModal(task) {
         const description = overlay.querySelector('#task-description').value.trim();
         const sourceLink = overlay.querySelector('#task-source-link').value.trim();
         const priority = overlay.querySelector('#task-priority').value;
+        const project = overlay.querySelector('#task-project').value;
+        const category = overlay.querySelector('#task-category').value;
+        const estimatedHours = parseFloat(overlay.querySelector('#task-est-hours').value) || null;
+        const progress = parseInt(overlay.querySelector('#task-progress').value) || 0;
 
         if (!client) {
             showToast('Please enter a client name', 'error');
@@ -930,6 +969,7 @@ async function showTaskModal(task) {
                 amount: parseFloat(amount) || 0, editableFileShared,
                 referenceCreative: creativeData, month: new Date(date).getMonth(),
                 dueDate, description, sourceLink, priority,
+                project, category, estimatedHours, progress,
             });
             showToast('Task updated!', 'success');
         } else {
@@ -938,6 +978,7 @@ async function showTaskModal(task) {
                 amount: parseFloat(amount) || 0, editableFileShared,
                 referenceCreative: creativeData, assignedBy: user.id,
                 dueDate, description, sourceLink, priority,
+                project, category, estimatedHours, progress,
             });
             showToast('Task created!', 'success');
         }

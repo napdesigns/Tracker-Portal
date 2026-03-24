@@ -6,6 +6,8 @@ const STORAGE_KEYS = {
     USERS: 'crm_users',
     TASKS: 'crm_tasks',
     SESSION: 'crm_session',
+    PROJECTS: 'crm_projects',
+    AGENCY: 'crm_agency',
 };
 
 // --- Utility ---
@@ -93,17 +95,28 @@ function migrateTaskData() {
             changed = true;
         }
         // Add new fields if missing
-        if (!('completedCreative' in t)) {
-            t.completedCreative = null;
-            changed = true;
-        }
-        if (!('completedCreativeAt' in t)) {
-            t.completedCreativeAt = null;
-            changed = true;
-        }
+        if (!('completedCreative' in t)) { t.completedCreative = null; changed = true; }
+        if (!('completedCreativeAt' in t)) { t.completedCreativeAt = null; changed = true; }
+        if (!('project' in t)) { t.project = ''; changed = true; }
+        if (!('category' in t)) { t.category = ''; changed = true; }
+        if (!('estimatedHours' in t)) { t.estimatedHours = null; changed = true; }
+        if (!('actualHours' in t)) { t.actualHours = null; changed = true; }
+        if (!('progress' in t)) { t.progress = 0; changed = true; }
     });
     if (changed) {
         localStorage.setItem(STORAGE_KEYS.TASKS, JSON.stringify(tasks));
+    }
+
+    // Migrate users — add new fields
+    const users = getUsers();
+    let usersChanged = false;
+    users.forEach(u => {
+        if (!('phone' in u)) { u.phone = ''; usersChanged = true; }
+        if (!('specialization' in u)) { u.specialization = ''; usersChanged = true; }
+        if (!('userStatus' in u)) { u.userStatus = 'Active'; usersChanged = true; }
+    });
+    if (usersChanged) {
+        localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));
     }
 }
 
@@ -238,6 +251,8 @@ function addTask(taskData) {
         slNo: maxSlNo + 1,
         date: taskData.date || new Date().toISOString().split('T')[0],
         client: taskData.client || '',
+        project: taskData.project || '',
+        category: taskData.category || '',
         type: taskData.type || 'Static',
         referenceCreative: taskData.referenceCreative || null,
         completedCreative: null,
@@ -249,6 +264,9 @@ function addTask(taskData) {
         assignedTo: taskData.assignedTo || null,
         assignedBy: taskData.assignedBy || null,
         dueDate: taskData.dueDate || null,
+        estimatedHours: taskData.estimatedHours || null,
+        actualHours: taskData.actualHours || null,
+        progress: taskData.progress || 0,
         description: taskData.description || '',
         sourceLink: taskData.sourceLink || '',
         status: 'assigned',
@@ -380,8 +398,94 @@ function getFreelancerStats(freelancerId) {
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
+// ==========================================
+// Projects CRUD
+// ==========================================
+
+function getProjects() {
+    return JSON.parse(localStorage.getItem(STORAGE_KEYS.PROJECTS) || '[]');
+}
+
+function getProjectById(id) {
+    return getProjects().find(p => p.id === id);
+}
+
+function getProjectsByClient(clientName) {
+    return getProjects().filter(p => (p.client || '').toLowerCase() === (clientName || '').toLowerCase());
+}
+
+function addProject(data) {
+    const projects = getProjects();
+    const project = {
+        id: generateId(),
+        name: data.name || '',
+        client: data.client || '',
+        type: data.type || 'One-Time',
+        startDate: data.startDate || null,
+        endDate: data.endDate || null,
+        status: data.status || 'Active',
+        notes: data.notes || '',
+        createdAt: new Date().toISOString(),
+    };
+    projects.push(project);
+    localStorage.setItem(STORAGE_KEYS.PROJECTS, JSON.stringify(projects));
+    return project;
+}
+
+function updateProject(id, data) {
+    const projects = getProjects();
+    const index = projects.findIndex(p => p.id === id);
+    if (index === -1) throw new Error('Project not found');
+    projects[index] = { ...projects[index], ...data };
+    localStorage.setItem(STORAGE_KEYS.PROJECTS, JSON.stringify(projects));
+    return projects[index];
+}
+
+function deleteProject(id) {
+    const projects = getProjects().filter(p => p.id !== id);
+    localStorage.setItem(STORAGE_KEYS.PROJECTS, JSON.stringify(projects));
+}
+
+// ==========================================
+// Agency Settings
+// ==========================================
+
+function getAgencySettings() {
+    return JSON.parse(localStorage.getItem(STORAGE_KEYS.AGENCY) || '{}');
+}
+
+function updateAgencySettings(data) {
+    const current = getAgencySettings();
+    const updated = { ...current, ...data };
+    localStorage.setItem(STORAGE_KEYS.AGENCY, JSON.stringify(updated));
+    return updated;
+}
+
+// ==========================================
+// Task Categories
+// ==========================================
+
+const TASK_CATEGORIES = [
+    'Strategy & Planning',
+    'Content Creation',
+    'Design & Creative',
+    'Technical Development',
+    'Campaign Management',
+    'Analytics & Reporting',
+    'Research & Analysis',
+    'Client Communication',
+    'Training & Support',
+    'Administration',
+];
+
+// ==========================================
+// Project Types
+// ==========================================
+
+const PROJECT_TYPES = ['Retainer', 'One-Time', 'Campaign', 'Consultation'];
+
 export {
-    STORAGE_KEYS, MONTHS,
+    STORAGE_KEYS, MONTHS, TASK_CATEGORIES, PROJECT_TYPES,
     generateId, formatDate, formatDateTime, timeDiff, sanitizeHTML,
     seedData, migrateTaskData,
     getUsers, getUserById, getFreelancers, getAdmins, addUser, updateUser, deleteUser,
@@ -390,4 +494,6 @@ export {
     addTask, updateTask, deleteTask,
     pickUpTask, uploadCompletedCreative, submitTask, approveTask, rejectTask, requestIteration, resolveIteration,
     getStats, getFreelancerStats,
+    getProjects, getProjectById, getProjectsByClient, addProject, updateProject, deleteProject,
+    getAgencySettings, updateAgencySettings,
 };

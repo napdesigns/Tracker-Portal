@@ -24,6 +24,7 @@ import { renderClients } from './clients.js';
 import { renderWorkload } from './workload.js';
 import { renderGantt } from './gantt.js';
 import { renderInvoice } from './invoice.js';
+import { renderSettings } from './settings.js';
 import { showToast } from './toast.js';
 import { renderNotificationBell } from './notifications.js';
 import { enhanceDateInputs } from './datepicker.js';
@@ -98,6 +99,7 @@ async function renderAppShell(content) {
   if (adminUser) {
     navItems.push({ id: 'workload', icon: icons.analytics, label: 'Workload' });
   }
+  if (adminUser) { navItems.push({ id: 'settings', icon: '⚙️', label: 'Settings' }); }
   navItems.push({ id: 'profile', icon: icons.users, label: 'My Profile' });
 
   const initials = user.name.split(' ').map(n => n[0]).join('').toUpperCase();
@@ -243,6 +245,9 @@ async function renderApp() {
         break;
       case 'profile':
         pageContent = await renderProfile();
+        break;
+      case 'settings':
+        pageContent = (await isAdmin()) ? await renderSettings() : await renderDashboard();
         break;
       case 'task-detail':
         pageContent = await renderTaskDetail(window.appState.selectedTaskId);

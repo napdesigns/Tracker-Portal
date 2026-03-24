@@ -5,7 +5,7 @@
 import {
     getCurrentUser, isAdmin, isSuperAdmin,
     getUsers, addUser, updateUser, deleteUser as deleteUserFromStore,
-    getTasks, getStats,
+    getTasks, getStats, sanitizeHTML,
 } from './store-async.js';
 import { showToast } from './toast.js';
 import icons from './icons.js';
@@ -40,19 +40,22 @@ async function renderUsers() {
                 <th>Name</th>
                 <th>Email</th>
                 <th>Role</th>
-                ${title === 'Freelancers' ? '<th>Tasks</th><th>Approved</th><th>Iterations</th><th>Points</th><th>Badge</th>' : ''}
+                ${title === 'Freelancers' ? '<th>Phone</th><th>Specialization</th><th>Status</th><th>Tasks</th><th>Approved</th><th>Iterations</th><th>Points</th><th>Badge</th>' : ''}
                 <th>Actions</th>
               </tr>
             </thead>
             <tbody>
               ${usersList.length === 0 ? `
-                <tr><td colspan="${title === 'Freelancers' ? 9 : 4}" style="text-align: center; color: var(--text-muted); padding: 30px;">No ${title.toLowerCase()} yet</td></tr>
+                <tr><td colspan="${title === 'Freelancers' ? 12 : 4}" style="text-align: center; color: var(--text-muted); padding: 30px;">No ${title.toLowerCase()} yet</td></tr>
               ` : usersList.map(u => {
             let statsHTML = '';
             if (title === 'Freelancers') {
                 const fStats = freelancerStatsMap[u.id] || { totalTasks: 0, approved: 0, totalIterations: 0 };
                 const badgeClass = u.badge === 'Platinum' ? 'approved' : u.badge === 'Gold' ? 'assigned' : u.badge === 'Silver' ? 'submitted' : '';
                 statsHTML = `
+                    <td>${u.phone ? sanitizeHTML(u.phone) : '—'}</td>
+                    <td>${u.specialization ? sanitizeHTML(u.specialization) : '—'}</td>
+                    <td><span class="badge badge-${(u.userStatus || 'Active') === 'Active' ? 'approved' : 'rejected'}">${u.userStatus || 'Active'}</span></td>
                     <td>${fStats.totalTasks}</td>
                     <td>${fStats.approved}</td>
                     <td>${fStats.totalIterations}</td>
@@ -139,6 +142,25 @@ async function showUserModal(user, defaultRole) {
               <option value="freelancer" ${defaultRole === 'freelancer' ? 'selected' : ''}>Freelancer</option>
             </select>
           </div>
+          <div class="form-group">
+            <label>Phone</label>
+            <input type="tel" class="form-control" id="user-phone" value="${user ? user.phone || '' : ''}" placeholder="+91 98000 00000" />
+          </div>
+          <div id="freelancer-extra-section" style="${(user?.role || defaultRole) === 'freelancer' ? '' : 'display:none;'}">
+            <div class="form-row">
+              <div class="form-group">
+                <label>Specialization</label>
+                <input type="text" class="form-control" id="user-specialization" value="${user ? user.specialization || '' : ''}" placeholder="e.g. Video Editor, Designer" />
+              </div>
+              <div class="form-group">
+                <label>Status</label>
+                <select class="form-control" id="user-status">
+                  <option value="Active" ${(!user?.userStatus || user?.userStatus === 'Active') ? 'selected' : ''}>Active</option>
+                  <option value="Inactive" ${user?.userStatus === 'Inactive' ? 'selected' : ''}>Inactive</option>
+                </select>
+              </div>
+            </div>
+          </div>
           <div id="pricing-section" style="${(user?.role || defaultRole) === 'freelancer' ? '' : 'display:none;'}">
             <div style="margin-bottom: 8px; font-weight: 600; font-size: 0.85rem; color: var(--text-primary);">Pricing per Type (₹)</div>
             <div class="form-row">
@@ -193,6 +215,8 @@ async function showUserModal(user, defaultRole) {
         const role = overlay.querySelector('#user-role').value;
         const section = overlay.querySelector('#pricing-section');
         if (section) section.style.display = role === 'freelancer' ? '' : 'none';
+        const extraSection = overlay.querySelector('#freelancer-extra-section');
+        if (extraSection) extraSection.style.display = role === 'freelancer' ? '' : 'none';
     };
 
     overlay.querySelector('#user-save-btn').onclick = async () => {
@@ -214,6 +238,10 @@ async function showUserModal(user, defaultRole) {
         const points = parseInt(overlay.querySelector('#user-points')?.value) || 0;
         const badge = overlay.querySelector('#user-badge')?.value || null;
 
+        const phone = overlay.querySelector('#user-phone').value.trim();
+        const specialization = overlay.querySelector('#user-specialization')?.value.trim() || '';
+        const userStatus = overlay.querySelector('#user-status')?.value || 'Active';
+
         if (!name || !email || !password) {
             showToast('All fields are required', 'error');
             return;
@@ -221,10 +249,10 @@ async function showUserModal(user, defaultRole) {
 
         try {
             if (isEdit) {
-                await updateUser(user.id, { name, password, role, pricing, points, badge });
+                await updateUser(user.id, { name, password, role, pricing, points, badge, phone, specialization, userStatus });
                 showToast('User updated!', 'success');
             } else {
-                await addUser({ name, email, password, role, pricing, points, badge });
+                await addUser({ name, email, password, role, pricing, points, badge, phone, specialization, userStatus });
                 showToast('User created!', 'success');
             }
             closeModal();

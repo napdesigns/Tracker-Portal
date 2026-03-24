@@ -6,13 +6,13 @@ import { supabase } from './supabase.js';
 
 // Re-export utility constants and functions from sync store
 import {
-    STORAGE_KEYS, MONTHS,
+    STORAGE_KEYS, MONTHS, TASK_CATEGORIES, PROJECT_TYPES,
     generateId, formatDate, formatDateTime, timeDiff, sanitizeHTML,
     seedData, migrateTaskData,
 } from './store.js';
 
 export {
-    STORAGE_KEYS, MONTHS,
+    STORAGE_KEYS, MONTHS, TASK_CATEGORIES, PROJECT_TYPES,
     generateId, formatDate, formatDateTime, timeDiff, sanitizeHTML,
     seedData, migrateTaskData,
 };
@@ -80,6 +80,10 @@ import {
     submitTask as _submitTask, approveTask as _approveTask, rejectTask as _rejectTask,
     requestIteration as _requestIteration, resolveIteration as _resolveIteration,
     getStats as _getStats, getFreelancerStats as _getFreelancerStats,
+    getProjects as _getProjects, getProjectById as _getProjectById,
+    getProjectsByClient as _getProjectsByClient,
+    addProject as _addProject, updateProject as _updateProject, deleteProject as _deleteProject,
+    getAgencySettings as _getAgencySettings, updateAgencySettings as _updateAgencySettings,
 } from './store.js';
 
 // ==========================================
@@ -230,6 +234,9 @@ export async function updateUser(id, data) {
     if (data.pricing !== undefined) updateData.pricing = data.pricing;
     if (data.points !== undefined) updateData.points = data.points;
     if (data.badge !== undefined) updateData.badge = data.badge;
+    if (data.phone !== undefined) updateData.phone = data.phone;
+    if (data.specialization !== undefined) updateData.specialization = data.specialization;
+    if (data.userStatus !== undefined) updateData.user_status = data.userStatus;
 
     const { data: profile, error } = await supabase
         .from('profiles')
@@ -1200,3 +1207,21 @@ export async function getActivityLog(limit = 100) {
     }
     return (data || []).map(toCamelCase);
 }
+
+// ==========================================
+// Projects (localStorage only for now)
+// ==========================================
+
+export async function getProjects() { return _getProjects(); }
+export async function getProjectById(id) { return _getProjectById(id); }
+export async function getProjectsByClient(clientName) { return _getProjectsByClient(clientName); }
+export async function addProject(data) { return _addProject(data); }
+export async function updateProject(id, data) { return _updateProject(id, data); }
+export async function deleteProject(id) { return _deleteProject(id); }
+
+// ==========================================
+// Agency Settings (localStorage only for now)
+// ==========================================
+
+export async function getAgencySettings() { return _getAgencySettings(); }
+export async function updateAgencySettings(data) { return _updateAgencySettings(data); }
